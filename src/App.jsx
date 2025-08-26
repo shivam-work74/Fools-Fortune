@@ -22,7 +22,7 @@ export default function App() {
   if (screen === "menu") return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-indigo-50 flex items-center justify-center p-6">
       <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full">
-        <h1 className="text-4xl font-extrabold text-indigo-700 mb-4">🎴 Old Maid</h1>
+        <h1 className="text-4xl font-extrabold text-indigo-700 mb-4">🎴 Fools-Fortune</h1>
         <p className="text-gray-600 mb-6">Choose your mode</p>
         <div className="flex flex-col gap-4">
           <button className="px-5 py-3 bg-pink-500 hover:bg-pink-600 text-white rounded-xl font-semibold transition" onClick={startTwoPlayer}>

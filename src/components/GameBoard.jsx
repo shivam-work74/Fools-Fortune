@@ -38,12 +38,18 @@ function DiscardPile({ pile }) {
 }
 
 // Winner popup for players who finish
-function WinnerPopup({ name }) {
+function WinnerPopup({ name, onBack }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
       <div className="bg-white rounded-3xl p-8 w-96 text-center shadow-xl relative">
         <h2 className="text-2xl font-bold mb-4">🎉 Winner!</h2>
         <p className="text-lg mb-2"><span className="font-semibold">{name}</span> has finished all cards and won!</p>
+        <button
+          onClick={onBack}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-full shadow hover:bg-indigo-700 transition mt-3"
+        >
+          Back
+        </button>
       </div>
     </div>
   );
@@ -74,7 +80,7 @@ function TutorialOverlay({ onClose }) {
   );
 }
 
-export default function GameBoard({ playersCount = 2, botCount = 1 }) {
+export default function GameBoard({ playersCount = 2 }) {
   const [players, setPlayers] = useState([]);
   const [discardPile, setDiscardPile] = useState([]);
   const [turn, setTurn] = useState(0);
@@ -97,7 +103,6 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
     const deck = createDeck();
     const dealt = dealToPlayers(deck, playersCount);
 
-    // Only players 1, 2, ... are bots
     const tmpPlayers = dealt.map((hand, idx) => {
       const isBot = idx !== 0;
       const name = idx === 0 ? "You" : `Bot ${idx}`;
@@ -123,9 +128,8 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
       clearInterval(timerRef.current);
       clearTimeout(botTimeout.current);
     };
-  }, [playersCount, botCount]);
+  }, [playersCount]);
 
-  // Timer for all players
   useEffect(() => {
     clearInterval(timerRef.current);
     if (loser || winner) return;
@@ -143,7 +147,6 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
     return () => clearInterval(timerRef.current);
   }, [turn, players, loser, winner]);
 
-  // Find next player with cards
   function nextActivePlayer(from) {
     let idx = from;
     for (let i = 0; i < players.length; i++) {
@@ -163,7 +166,6 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
     }
   }
 
-  // Check if someone finished and remove them from play
   function checkPlayerFinished(playersArr) {
     let finishedSomeone = false;
     let finishedName = null;
@@ -180,7 +182,6 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
     return updated;
   }
 
-  // Check if only one player left with the Joker
   function checkGameEnd(playersArr) {
     const activePlayers = playersArr.filter(p => !p.finished && p.hand.length > 0);
     if (activePlayers.length === 1 && activePlayers[0].hand.length === 1 && activePlayers[0].hand[0].isJoker) {
@@ -191,12 +192,10 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
     return false;
   }
 
-  // Helper: are we in spectator mode?
   function isSpectator() {
     return players[0]?.finished;
   }
 
-  // Animate card movement between stacks
   function drawFrom(targetIndex, cardIndex = null) {
     if (!players[targetIndex] || !players[turn]) return;
     if (players[turn].hand.length === 0 || players[turn].finished) return;
@@ -213,19 +212,12 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
     const idx = cardIndex !== null ? cardIndex : Math.floor(Math.random() * players[targetIndex].hand.length);
     const drawn = players[targetIndex].hand[idx];
 
-    // Animation: get DOM positions for smooth movement
     const fromElem = document.getElementById(`hand-${targetIndex}`);
     const toElem = document.getElementById(`hand-${turn}`);
-    let fromRect = fromElem?.getBoundingClientRect();
-    let toRect = toElem?.getBoundingClientRect();
+    const fromRect = fromElem?.getBoundingClientRect();
+    const toRect = toElem?.getBoundingClientRect();
 
-    setMovingCard({
-      card: drawn,
-      from: targetIndex,
-      to: turn,
-      fromRect,
-      toRect
-    });
+    setMovingCard({ card: drawn, from: targetIndex, to: turn, fromRect, toRect });
 
     setTimeout(() => {
       setPlayers(prev => {
@@ -236,17 +228,13 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
         const { hand: cleaned, discards } = removePairsAndReturnRemoved(next[turn].hand);
         next[turn].hand = cleaned;
         setDiscardPile(d => [...discards, ...d]);
-        pushLog(`🎴 ${next[turn].name} drew a card from ${next[targetIndex].name}`);
-        if (discards.length > 0) {
-          pushLog(`🗑️ ${next[turn].name} discarded a pair!`);
-        }
+        pushLog(`🎴 ${next[turn].name} drew a card from ${players[targetIndex].name}`);
+        if (discards.length > 0) pushLog(`🗑️ ${next[turn].name} discarded a pair!`);
+
         setMovingCard(null);
         setSelectedCard(null);
 
-        // Check if someone finished
         const checked = checkPlayerFinished(next);
-
-        // Check for game end
         if (!checkGameEnd(checked)) {
           setTimeout(() => {
             const nextPlayer = nextActivePlayer(turn);
@@ -256,10 +244,9 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
             }
           }, 900);
         }
-
         return checked;
       });
-    }, 1400); // Slower bot movement
+    }, 1400);
   }
 
   function humanDrawClick(targetIndex, cardIndex = null) {
@@ -274,28 +261,9 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
 
   function botAction() {
     if (loser || winner) return;
-    if (isSpectator()) {
-      // If user finished, just let bots play slowly
-      setTimeout(() => {
-        const botIdx = turn;
-        let target = nextActivePlayer(botIdx - 1);
-        if (target === null || target === botIdx) {
-          const next = nextActivePlayer(botIdx);
-          if (next !== null) {
-            setTurn(next);
-            setTimer(10);
-          }
-          return;
-        }
-        pushLog(`🤖 ${players[botIdx].name} is drawing a card from ${players[target].name}...`);
-        drawFrom(target);
-        setTimer(10);
-      }, 2000); // Even slower bot movement in spectator mode
-      return;
-    }
-    // Normal bot action
+
     const botIdx = turn;
-    let target = nextActivePlayer(botIdx - 1);
+    let target = nextActivePlayer(botIdx);
     if (target === null || target === botIdx) {
       const next = nextActivePlayer(botIdx);
       if (next !== null) {
@@ -304,6 +272,7 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
       }
       return;
     }
+
     pushLog(`🤖 ${players[botIdx].name} is drawing a card from ${players[target].name}...`);
     botTimeout.current = setTimeout(() => {
       drawFrom(target);
@@ -329,19 +298,14 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
     return `${p.name}'s turn`;
   }
 
-  // Timer bar visual
   function TimerBar() {
     return (
       <div className="timer-bar mt-2 mb-2">
-        <div
-          className="timer-fill"
-          style={{ width: `${(timer / 10) * 100}%` }}
-        />
+        <div className="timer-fill" style={{ width: `${(timer / 10) * 100}%` }} />
       </div>
     );
   }
 
-  // Card movement animation using absolute positioning
   function MovingCardAnimation({ movingCard }) {
     if (!movingCard || !movingCard.fromRect || !movingCard.toRect) return null;
     const { card, fromRect, toRect } = movingCard;
@@ -358,13 +322,12 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
         style={{ position: "fixed", zIndex: 1000, pointerEvents: "none" }}
       >
         <div className="w-28 h-40 bg-white rounded-2xl shadow flex items-center justify-center border">
-          <div className="text-2xl font-semibold">{card.isJoker ? "🃏" : `${card.rank}${card.suit}`}</div>
+          <div className="text-2xl font-semibold">{movingCard.card.isJoker ? "🃏" : `${movingCard.card.rank}${movingCard.card.suit}`}</div>
         </div>
       </motion.div>
     );
   }
 
-  // Banner for turn info
   function TurnBanner() {
     if (loser || winner) return null;
     if (isSpectator()) {
@@ -395,7 +358,6 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
     <div className="max-w-6xl mx-auto p-6">
       <div className="bg-white rounded-2xl shadow-xl p-6 grid gap-6 relative">
         <TurnBanner />
-
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-xl font-bold text-gray-800">Old Maid</h1>
@@ -408,16 +370,12 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
           </div>
         </div>
 
-        {/* Game log */}
         <GameLog log={log} />
-
-        {/* Discard pile */}
         <DiscardPile pile={discardPile} />
 
-        {/* Opponents */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {players.map((p, idx) => {
-            if (idx === 0) return null;
+            if (idx === 0) return null; // skip human hand here
             if (p.finished) {
               return (
                 <div key={p.id} id={`hand-${idx}`} className="p-4 rounded-xl bg-green-50 ring-2 ring-green-200">
@@ -426,7 +384,6 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
                 </div>
               );
             }
-            // Highlight stack to draw from on your turn
             const highlight = turn === 0 && nextActivePlayer(0) === idx;
             return (
               <div
@@ -441,7 +398,7 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
                 <div className="flex justify-center">
                   <Hand
                     cards={p.hand}
-                    hideCards={true}
+                    hideCards={true} // always hide bot cards
                     selectedCardId={selectedCard?.id || null}
                     onStackClick={() => humanDrawClick(idx)}
                   />
@@ -453,23 +410,18 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
           })}
         </div>
 
-        {/* Player hand */}
         <div className={`flex flex-col items-center gap-3 mt-6 ${players[0]?.finished ? "bg-green-50 ring-2 ring-green-200 rounded-xl p-4" : ""}`} id="hand-0">
           <div className="text-sm text-gray-700">You</div>
           <Hand
             cards={players[0]?.hand || []}
-            hideCards={false}
-            onCardClick={(cardIdx) => {
-              const c = players[0]?.hand[cardIdx];
-              setSelectedCard(c);
-            }}
+            hideCards={false} // human sees cards
+            onCardClick={(cardIdx) => setSelectedCard(players[0]?.hand[cardIdx])}
             selectedCardId={selectedCard?.id || null}
           />
           <div className="text-xs text-gray-500">{players[0]?.hand?.length || 0} cards</div>
           {players[0]?.finished && <div className="text-green-600 font-semibold mt-2">You finished! 🎉</div>}
         </div>
 
-        {/* Card moving animation */}
         <AnimatePresence>
           {movingCard && <MovingCardAnimation movingCard={movingCard} />}
         </AnimatePresence>
@@ -477,7 +429,7 @@ export default function GameBoard({ playersCount = 2, botCount = 1 }) {
 
       {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
       {howOpen && <HowToPlay onClose={() => setHowOpen(false)} />}
-      {winner && <WinnerPopup name={winner} />}
+      {winner && <WinnerPopup name={winner} onBack={() => setWinner(null)} />}
       {loser && <WinnerModal loserName={loser} players={players} onRestart={restart} />}
     </div>
   );
