@@ -5,20 +5,29 @@ export default function Register({ onSwitch, onSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleRegister(e) {
     e.preventDefault();
+    setError("");
+    setLoading(true);
     try {
-      const res = await fetch("https://game-server-z47n.onrender.com/api/auth/register", { // <-- corrected endpoint
+      const res = await fetch("https://game-server-z47n.onrender.com/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password }),
       });
+
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.message || "Registration failed");
+
+      // Registration success
       onSuccess();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -31,7 +40,9 @@ export default function Register({ onSwitch, onSuccess }) {
 
       <div className="relative bg-white/40 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-md transform transition-all animate-fade-in">
         <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-6">📝 Create Account</h2>
+
         {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
+
         <form onSubmit={handleRegister} className="flex flex-col gap-4">
           <input
             type="text"
@@ -59,11 +70,15 @@ export default function Register({ onSwitch, onSuccess }) {
           />
           <button
             type="submit"
-            className="py-3 bg-gradient-to-r from-pink-500 to-red-500 hover:opacity-90 text-white rounded-xl font-semibold shadow-md transition"
+            className={`py-3 bg-gradient-to-r from-pink-500 to-red-500 hover:opacity-90 text-white rounded-xl font-semibold shadow-md transition ${
+              loading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            disabled={loading}
           >
-            Register
+            {loading ? "Creating..." : "Register"}
           </button>
         </form>
+
         <p className="mt-4 text-sm text-center text-gray-700">
           Already have an account?{" "}
           <button onClick={onSwitch} className="text-pink-500 font-semibold hover:underline">

@@ -4,20 +4,29 @@ export default function Login({ onSwitch, onSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleLogin(e) {
     e.preventDefault();
+    setError("");
+    setLoading(true);
     try {
       const res = await fetch("https://game-server-z47n.onrender.com/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.message || "Login failed");
+
+      // Login success
       onSuccess();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -30,7 +39,9 @@ export default function Login({ onSwitch, onSuccess }) {
 
       <div className="relative bg-white/40 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-md transform transition-all animate-fade-in">
         <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-6">🔐 Welcome</h2>
+
         {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
+
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <input
             type="email"
@@ -50,11 +61,15 @@ export default function Login({ onSwitch, onSuccess }) {
           />
           <button
             type="submit"
-            className="py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-90 text-white rounded-xl font-semibold shadow-md transition"
+            className={`py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-90 text-white rounded-xl font-semibold shadow-md transition ${
+              loading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            disabled={loading}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
+
         <p className="mt-4 text-sm text-center text-gray-700">
           Don’t have an account?{" "}
           <button onClick={onSwitch} className="text-indigo-600 font-semibold hover:underline">
