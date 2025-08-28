@@ -11,7 +11,7 @@ export default function Login({ onSwitch, onSuccess }) {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("https://game-server-z47n.onrender.com/api/auth/login", {
+      const res = await fetch("https://game-server-z47n.onrender.com/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
