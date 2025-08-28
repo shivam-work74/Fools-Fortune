@@ -29,7 +29,7 @@ export default function Login({ onSwitch, onSuccess }) {
       <div className="absolute w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
 
       <div className="relative bg-white/40 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-md transform transition-all animate-fade-in">
-        <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-6">🔐 Welcome </h2>
+        <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-6">🔐 Welcome</h2>
         {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <input

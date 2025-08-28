@@ -9,7 +9,7 @@ export default function Register({ onSwitch, onSuccess }) {
   async function handleRegister(e) {
     e.preventDefault();
     try {
-      const res = await fetch("https://game-server-z47n.onrender.com/api/auth/login", {
+      const res = await fetch("https://game-server-z47n.onrender.com/api/auth/register", { // <-- corrected endpoint
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password }),

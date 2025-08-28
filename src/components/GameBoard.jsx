@@ -433,4 +433,4 @@ export default function GameBoard({ playersCount = 2 }) {
       {loser && <WinnerModal loserName={loser} players={players} onRestart={restart} />}
     </div>
   );
-}
+}      
