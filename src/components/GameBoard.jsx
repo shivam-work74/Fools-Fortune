@@ -60,7 +60,7 @@ function TutorialOverlay({ onClose }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
       <div className="bg-white rounded-3xl p-6 w-[350px] text-center shadow-xl relative">
-        <h2 className="text-xl font-bold mb-4">📝 How to Play Old Maid</h2>
+        <h2 className="text-xl font-bold mb-4">📝 How to Play</h2>
         <ol className="text-left text-sm text-gray-700 mb-4 list-decimal list-inside">
           <li>All players are dealt cards. Pairs are removed automatically.</li>
           <li>On your turn, <span className="font-semibold text-indigo-700">click a stack above</span> to draw a card from the next player.</li>
@@ -360,7 +360,7 @@ export default function GameBoard({ playersCount = 2 }) {
         <TurnBanner />
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Old Maid</h1>
+            <h1 className="text-xl font-bold text-gray-800">Fools-Fortune</h1>
             <div className="text-sm text-gray-600 mt-1">{loser ? "Game over" : currentTurnLabel()}</div>
             <TimerBar />
           </div>
@@ -434,3 +434,5 @@ export default function GameBoard({ playersCount = 2 }) {
     </div>
   );
 }      
+
+
