@@ -8,7 +8,7 @@ export default function WinnerModal({ loserName, players=[], onRestart }) {
         <h2 className="text-2xl font-bold mb-4">🏁 Game Over!</h2>
         <p className="text-lg mb-2">💀 <span className="font-semibold">{loserName}</span> got the Joker!</p>
         <p className="text-lg mb-6">🎉 Winner{winnerNames.includes(",")?"s":""}: <span className="font-semibold">{winnerNames}</span></p>
-        <button onClick={onRestart} className="bg-indigo-600 text-white px-6 py-2 rounded-full shadow hover:bg-indigo-700 transition">
+        <button onClick={onRestart} className="bg-indigo-600 text-white px-6 py-2   rounded-full shadow hover:bg-indigo-700 transition">
           Restart Game
         </button>
       </div>
