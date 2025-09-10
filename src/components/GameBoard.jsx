@@ -111,7 +111,7 @@ export default function GameBoard({ playersCount = 2 }) {
     });
 
     const allDiscards = tmpPlayers.flatMap(p => p.discards || []);
-    setPlayers(tmpPlayers.map(({ id, name, isBot, hand, finished }) => ({ id, name, isBot, hand, finished })));
+    setPlayers(tmpPlayers.map(({ id, name, isBot, hand, finished }) => ({ id, name, isBot, hand, finished })));  
     setDiscardPile(allDiscards);
     setTurn(0);
     setTimer(10);
@@ -178,7 +178,7 @@ export default function GameBoard({ playersCount = 2 }) {
       }
       return p;
     });
-    if (finishedSomeone) setWinner(finishedName);
+    if (finishedSomeone) setWinner(finishedName);   
     return updated;
   }
 
