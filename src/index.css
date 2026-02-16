@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Page polish */
+:root {
+  --accent: #6366f1; /* indigo */
+}
+
+html,body,#root { height: 100%; }
+body {
+  @apply bg-gradient-to-b from-gray-50 to-gray-100;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Card sizes */
+.card-face {
+  @apply w-28 h-40 rounded-2xl shadow-lg border border-gray-200 flex items-center justify-center select-none;
+}
+.card-back {
+  @apply w-28 h-40 rounded-2xl shadow-md flex items-center justify-center bg-gradient-to-tr from-slate-300 to-slate-200;
+}
+
+/* Buttons */
+.btn {
+  @apply px-4 py-2 rounded-xl font-semibold transition;
+}
+
+/* Small helpers */
+.fade-in {
+  animation: fadeIn .28s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Timer bar small */
+.timer-bar {
+  @apply h-2 rounded-full overflow-hidden bg-gray-200;
+}
+.timer-fill {
+  @apply h-full bg-indigo-500 transition-all ease-linear;
+}
+
+/* 3D Utilities */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.perspective-500 {
+  perspective: 500px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.rotate-x-20 {
+  transform: rotateX(20deg);
+}
+.rotate-x-60 {
+  transform: rotateX(60deg);
+}
+.rotate-y-12 {
+  transform: rotateY(12deg);
+}
