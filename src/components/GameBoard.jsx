@@ -1,5 +1,8 @@
+
 import React, { useEffect, useRef, useState } from "react";
-import { createDeck, dealToPlayers, removePairsAndReturnRemoved, findPair } from "../utils/deck";
+import { useParams, useNavigate } from "react-router-dom";
+import { useSocket } from "../context/SocketContext";
+import { useAuth } from "../context/AuthContext";
 import Hand from "./Hand";
 import Card from "./Card";
 import PlayerAvatar from "./PlayerAvatar";
@@ -29,20 +32,23 @@ function GameLog({ log }) {
 
 function WinnerPopup({ name, onBack }) {
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] animate-fade-in perspective-1000">
-      <div className="bg-gradient-to-br from-indigo-900 to-black rounded-3xl p-10 w-96 text-center shadow-[0_0_50px_rgba(99,102,241,0.5)] border border-white/10 relative transform rotate-x-12 hover:rotate-x-0 transition-transform duration-500">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center z-[100] animate-fade-in perspective-1000">
+      <div className="bg-gradient-to-br from-gray-900 to-black rounded-3xl p-12 w-[500px] text-center shadow-[0_0_100px_rgba(202,138,4,0.3)] border border-yellow-600/50 relative transform rotate-x-12 hover:rotate-x-0 transition-transform duration-500 group">
         <div className="absolute inset-0 rounded-3xl opacity-20 bg-[url('https://www.transparenttextures.com/patterns/felt.png')]" />
+        <div className="absolute inset-0 rounded-3xl border border-yellow-500/20 pointer-events-none" />
+
         <div className="relative z-10">
-          <div className="text-7xl mb-6 drop-shadow-[0_0_20px_rgba(255,215,0,0.5)] animate-bounce">🏆</div>
-          <h2 className="text-4xl font-black mb-2 text-white tracking-tight">VICTORY</h2>
-          <p className="text-indigo-200 mb-8 font-light text-lg">
-            <span className="font-bold text-white uppercase tracking-widest border-b border-indigo-500 pb-1">{name}</span> is safe.
+          <div className="text-8xl mb-8 drop-shadow-[0_0_30px_rgba(255,215,0,0.6)] animate-bounce">🏆</div>
+          <h2 className="text-5xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-700 tracking-tight font-serif uppercase">VICTORY</h2>
+          <p className="text-yellow-100/60 mb-10 font-serif text-xl italic">
+            "Fortune favors the bold."<br />
+            <span className="font-bold text-white not-italic uppercase tracking-[0.2em] border-b border-yellow-600/50 pb-1 mt-2 inline-block">{name}</span> survives.
           </p>
           <button
             onClick={onBack}
-            className="w-full bg-white text-indigo-900 px-8 py-4 rounded-xl shadow-xl hover:bg-gray-100 hover:scale-105 transition-all font-black text-lg tracking-widest uppercase"
+            className="w-full bg-gradient-to-r from-yellow-700 to-yellow-600 text-black px-8 py-5 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] hover:shadow-[0_0_30px_rgba(202,138,4,0.4)] hover:-translate-y-1 transition-all font-bold text-xl tracking-[0.3em] uppercase border border-white/20"
           >
-            Continue
+            Claim Winnings
           </button>
         </div>
       </div>
@@ -54,41 +60,23 @@ function MovingCardAnimation({ movingCard }) {
   if (!movingCard || !movingCard.fromRect || !movingCard.toRect) return null;
   const { fromRect, toRect } = movingCard;
 
-  // Calculate center points
   const startX = fromRect.left + fromRect.width / 2;
   const startY = fromRect.top + fromRect.height / 2;
   const endX = toRect.left + toRect.width / 2;
   const endY = toRect.top + toRect.height / 2;
 
-  // We want to center the card on these points. A card is approx 96px width (w-24).
-  // Adjust by half width/height (approx 48px, 72px)
   const cardOffsetX = 48;
   const cardOffsetY = 72;
 
   return (
     <motion.div
-      key={movingCard.card.id} // Force remount for every new move
-      initial={{
-        x: startX - cardOffsetX,
-        y: startY - cardOffsetY,
-        scale: 0.5,
-        opacity: 0,
-        rotateY: 0
-      }}
-      animate={{
-        x: endX - cardOffsetX,
-        y: endY - cardOffsetY,
-        scale: 1,
-        opacity: 1,
-        rotateY: 180, // Flip effect
-        transition: { duration: 1.0, ease: "easeInOut" }
-      }}
+      key={Date.now()}
+      initial={{ x: startX - cardOffsetX, y: startY - cardOffsetY, scale: 0.5, opacity: 0, rotateY: 0 }}
+      animate={{ x: endX - cardOffsetX, y: endY - cardOffsetY, scale: 1, opacity: 1, rotateY: 180, transition: { duration: 1.0, ease: "easeInOut" } }}
       exit={{ opacity: 0, scale: 0.5 }}
       style={{ position: "fixed", top: 0, left: 0, zIndex: 9999, pointerEvents: "none", perspective: "800px" }}
     >
-      {/* Visual Representation of the moving card (Premium Back) */}
       <div className="w-24 h-36 bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-xl border border-indigo-300 shadow-2xl transform-style-3d relative overflow-hidden">
-        {/* Pattern Overlay */}
         <div className="absolute inset-2 border border-indigo-400/30 rounded-lg opacity-50" />
         <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-black"
           style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 20px)" }}
@@ -101,299 +89,217 @@ function MovingCardAnimation({ movingCard }) {
   );
 }
 
+// --- Spectator Badge ---
+function SpectatorBadge() {
+  return (
+    <div className="fixed top-24 right-6 bg-black/50 backdrop-blur-md border border-yellow-500/30 px-4 py-2 rounded-full flex items-center gap-2 shadow-2xl z-50 animate-pulse">
+      <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_red]" />
+      <span className="text-xs font-bold uppercase tracking-widest text-yellow-500/80">Live Feed</span>
+    </div>
+  );
+}
+
 // --- Main Component ---
 
-export default function GameBoard({ playersCount = 4, playerName = "You", playerAvatar = "😎", onExit }) {
-  const [players, setPlayers] = useState([]);
-  const [turn, setTurn] = useState(0);
+// --- Soundscapes (Placeholder) ---
+// Ideally this would be a separate hook/component managing Audio objects.
+const SOUNDS = {
+  SIP: new Audio('https://assets.mixkit.co/active_storage/sfx/2570/2570-preview.m4a'), // Placeholder
+  CHECK: new Audio('https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.m4a'), // Placeholder
+};
+
+// --- Main Component ---
+
+export default function GameBoard() {
+  const { lobbyId } = useParams();
+  const socket = useSocket();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const [gameState, setGameState] = useState(null);
   const [log, setLog] = useState([]);
   const [timer, setTimer] = useState(15);
   const [movingCard, setMovingCard] = useState(null);
   const [howOpen, setHowOpen] = useState(false);
-  const [loser, setLoser] = useState(null);
   const [winner, setWinner] = useState(null);
-  const [gameStarted, setGameStarted] = useState(false);
+  const [loser, setLoser] = useState(null);
+  const [signals, setSignals] = useState([]); // { id, from, type, x, y }
 
   const timerRef = useRef(null);
-  const botTimeout = useRef(null);
 
-  function pushLog(msg) {
-    setLog(l => [...l, msg].slice(-5));
-  }
+  // --- Socket Listeners ---
+  useEffect(() => {
+    if (!socket || !lobbyId) return;
 
-  function initGame() {
-    const deck = createDeck();
-    const dealt = dealToPlayers(deck, playersCount);
-
-    const initialPlayers = dealt.map((hand, idx) => {
-      const isBot = idx !== 0;
-      const name = idx === 0 ? playerName : `Bot ${idx}`;
-      const { hand: cleaned, discards } = removePairsAndReturnRemoved(hand);
-      return { id: idx, name, isBot, hand: cleaned, discards, finished: false };
+    socket.on('gameStateUpdate', (newState) => {
+      handleStateUpdate(newState);
     });
 
-    setPlayers(initialPlayers);
-    setTurn(0);
-    setTimer(15);
-    setLog(["🃏 Table Open!", "Good Luck."]);
-    setLoser(null);
-    setWinner(null);
-    setGameStarted(true);
+    socket.on('gameStarted', (initialState) => {
+      handleStateUpdate(initialState);
+    });
 
-    checkPlayerFinished(initialPlayers);
+    socket.on('gameOver', ({ loser }) => {
+      setLoser(loser.username);
+      setLog(l => [...l, `💀 ${loser.username} is the Old Maid!`]);
+    });
+
+    socket.on('signalReceived', ({ from, type }) => {
+      showSignal(from, type);
+    });
+
+    socket.on('spectatorUpdate', (newState) => {
+      handleStateUpdate(newState);
+    });
+
+    socket.on('error', (err) => alert(err));
+
+    return () => {
+      socket.off('gameStateUpdate');
+      socket.off('spectatorUpdate');
+      socket.off('gameStarted');
+      socket.off('gameOver');
+      socket.off('signalReceived');
+      socket.off('error');
+    };
+  }, [socket, lobbyId]);
+
+  function handleStateUpdate(newState) {
+    if (newState.lastAction) {
+      const { from, to, match } = newState.lastAction;
+      setLog(l => [...l, `${to} drew from ${from}`].slice(-5));
+      if (match) setLog(l => [...l, `✨ ${to} made a match!`].slice(-5));
+      animateDraw(from, to);
+    }
+    setGameState(newState);
+    setTimer(15);
+
+    const me = newState.players.find(p => p.username === user.username);
+    if (me && me.finished && !winner) {
+      setWinner(me.username);
+    }
   }
 
-  // Initial setup
-  useEffect(() => {
-    initGame();
-    return () => {
-      clearInterval(timerRef.current);
-      clearTimeout(botTimeout.current);
-    };
-  }, [playersCount]);
+  // --- Signals & Emotes ---
+  const sendSignal = (type) => {
+    socket.emit('sendSignal', { lobbyId, type });
+    showSignal(user.username, type); // Show locally instantly
+  };
 
-  // Turn Timer
+  const showSignal = (username, type) => {
+    // Determine position based on username
+    if (!gameState) return;
+
+    // Create signal object
+    const id = Date.now() + Math.random();
+    setSignals(prev => [...prev, { id, username, type }]);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+      setSignals(prev => prev.filter(s => s.id !== id));
+    }, 3000);
+
+    // Play sound (mock)
+    // if (SOUNDS[type]) SOUNDS[type].play().catch(() => {});
+  };
+
+  // --- Animation Helper ---
+  async function animateDraw(fromName, toName) {
+    if (!gameState) return;
+  }
+
+  // --- Interaction ---
+  const handleCardClick = (targetPlayerIndex, cardIndex) => {
+    if (!gameState || gameState.loser) return;
+    const myIdx = gameState.players.findIndex(p => p.username === user.username);
+    if (myIdx === -1) return;
+
+    if (gameState.turnIndex !== myIdx) {
+      setLog(l => [...l.slice(-4), "⚠️ Not your turn!"]);
+      return;
+    }
+
+    socket.emit('playTurn', { lobbyId, targetPlayerIdx: targetPlayerIndex, cardIdx });
+  };
+
+
+  // --- Timer ---
   useEffect(() => {
     clearInterval(timerRef.current);
-    if (!gameStarted || loser) return;
+    if (!gameState || loser) return;
 
     timerRef.current = setInterval(() => {
-      setTimer(t => {
-        if (t <= 1) {
-          handleTimeout();
-          return 15;
-        }
-        return t - 1;
-      });
+      setTimer(t => (t > 0 ? t - 1 : 0));
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [turn, loser, winner, gameStarted]);
+  }, [gameState, loser]);
 
-  // Bot Action Trigger
-  useEffect(() => {
-    if (!gameStarted || !players[turn] || loser) return;
-    if (players[turn].isBot && !players[turn].finished) {
-      botTimeout.current = setTimeout(botAction, 1500);
-    }
-  }, [turn, players, loser, gameStarted]);
+  // --- Render Helpers ---
 
+  if (!gameState) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading Mission Data...</div>;
 
-  function getNextActivePlayer(currentIdx) {
-    let idx = currentIdx;
-    let count = 0;
-    while (count < players.length) {
-      idx = (idx + 1) % players.length;
-      if (players[idx] && !players[idx].finished) return idx;
-      count++;
-    }
-    return null;
-  }
+  // If Spectating, myIndex might be -1.
+  const myIndex = gameState.isSpectating ? 0 : gameState.players.findIndex(p => p.username === user.username);
 
-  function advanceTurn() {
-    if (loser) return;
-    setTimer(15);
-    const next = getNextActivePlayer(turn);
-    if (next !== null) {
-      setTurn(next);
-    }
-  }
+  // If Spectating, just show players as is, maybe disable rotation or rotate around table? 
+  // Simplified: If spectating, treat player 0 as "Me" (but random) or keep standard view.
+  // Let's just rotate so index 0 is at bottom.
+  const rotatedPlayers = gameState.isSpectating ? gameState.players : [
+    ...gameState.players.slice(myIndex),
+    ...gameState.players.slice(0, myIndex)
+  ];
 
-  function handleTimeout() {
-    if (players[turn].finished) {
-      advanceTurn();
-      return;
-    }
-
-    if (players[turn].isBot) {
-      // Bot logic handles itself
-    } else {
-      const target = getNextActivePlayer(turn);
-      pushLog(`⏱️ Time out! Auto-picking...`);
-      if (target !== null && target !== turn) {
-        executeDraw(target, null);
-      }
-    }
-  }
-
-  function botAction() {
-    const target = getNextActivePlayer(turn);
-    if (target !== null && target !== turn) {
-      executeDraw(target, null);
-    } else {
-      advanceTurn();
-    }
-  }
-
-  async function executeDraw(targetIndex, cardIndex = null) {
-    if (loser) return;
-
-    const currentPlayer = players[turn];
-    const targetPlayer = players[targetIndex];
-
-    if (!currentPlayer || !targetPlayer || targetPlayer.hand.length === 0) {
-      advanceTurn();
-      return;
-    }
-
-    const actualCardIndex = cardIndex !== null ? cardIndex : Math.floor(Math.random() * targetPlayer.hand.length);
-    const drawnCard = targetPlayer.hand[actualCardIndex];
-    if (!drawnCard) return;
-
-    const fromId = `avatar-${targetIndex}`;
-    const toId = `avatar-${turn}`;
-    const fromEl = document.getElementById(fromId);
-    const toEl = document.getElementById(toId);
-
-    if (fromEl && toEl) {
-      const fromRect = fromEl.getBoundingClientRect();
-      const toRect = toEl.getBoundingClientRect();
-      setMovingCard({ card: drawnCard, fromRect, toRect });
-
-      await new Promise(r => setTimeout(r, 1200));
-      setMovingCard(null);
-    } else {
-      await new Promise(r => setTimeout(r, 500));
-    }
-
-    const newPlayers = [...players];
-
-    // Remove from target
-    newPlayers[targetIndex] = {
-      ...targetPlayer,
-      hand: targetPlayer.hand.filter(c => c.id !== drawnCard.id)
-    };
-
-    // Add/Check Pair for current
-    const match = findPair(currentPlayer.hand, drawnCard);
-    if (match) {
-      pushLog(`✨ Match!`);
-      newPlayers[turn] = {
-        ...currentPlayer,
-        hand: currentPlayer.hand.filter(c => c.id !== match.id),
-        discards: [...currentPlayer.discards, match, drawnCard]
-      };
-    } else {
-      pushLog(`📥 Drew a card`);
-      newPlayers[turn] = {
-        ...currentPlayer,
-        hand: [...currentPlayer.hand, drawnCard]
-      };
-    }
-
-    const checkedPlayers = checkPlayerFinished(newPlayers);
-    setPlayers(checkedPlayers);
-
-    if (!checkGameEnd(checkedPlayers)) {
-      advanceTurn();
-    }
-  }
-
-  function handleHumanCardClick(targetPlayerIndex, cardIndex) {
-    if (turn !== 0) {
-      pushLog("⚠️ Wait for your turn!");
-      return;
-    }
-
-    const validTarget = getNextActivePlayer(0);
-    if (targetPlayerIndex !== validTarget) {
-      pushLog(`⚠️ Draw from ${players[validTarget].name} (Left)!`);
-      return;
-    }
-
-    executeDraw(targetPlayerIndex, cardIndex);
-  }
-
-  function checkPlayerFinished(currentPlayers) {
-    let someoneFinished = null;
-    const updated = currentPlayers.map(p => {
-      if (p.hand.length === 0 && !p.finished) {
-        pushLog(`🎉 ${p.name} is SAFE!`);
-        someoneFinished = p.name;
-        return { ...p, finished: true };
-      }
-      return p;
-    });
-
-    if (someoneFinished) {
-      setWinner(someoneFinished);
-    }
-    return updated;
-  }
-
-  function checkGameEnd(currentPlayers) {
-    const active = currentPlayers.filter(p => !p.finished);
-    if (active.length === 1) {
-      const lastPlayer = active[0];
-      setLoser(lastPlayer.name);
-      pushLog(`💀 ${lastPlayer.name} is the Old Maid!`);
-      return true;
-    }
-    return false;
-  }
-
-  // --- Layout Helpers ---
-
-  function getPositionStyle(index, total) {
-    // 3D Perspective Positioning
-    // Human is always bottom center
-    if (index === 0) return {
-      bottom: "5%",
-      left: "50%",
-      transform: "translateX(-50%) translateZ(50px) scale(1)",
-      zIndex: 50
-    };
-
+  function getPositionStyle(visualIndex, total) {
+    if (visualIndex === 0) return { bottom: "5%", left: "50%", transform: "translateX(-50%) translateZ(50px) scale(1)", zIndex: 50 };
     if (total === 2) return { top: "10%", left: "50%", transform: "translateX(-50%) translateZ(-100px) scale(0.85)" };
-
     if (total >= 4) {
-      if (index === 1) return { top: "35%", left: "1%", transform: "translateZ(0px) rotateY(25deg)" };
-      if (index === 2) return { top: "2%", left: "50%", transform: "translateX(-50%) translateZ(-150px) scale(0.8)" };
-      if (index === 3) return { top: "35%", right: "1%", transform: "translateZ(0px) rotateY(-25deg)" };
-      if (index > 3) return { top: "20%", right: "1%" };
+      if (visualIndex === 1) return { top: "35%", left: "1%", transform: "translateZ(0px) rotateY(25deg)" };
+      if (visualIndex === 2) return { top: "2%", left: "50%", transform: "translateX(-50%) translateZ(-150px) scale(0.8)" };
+      if (visualIndex === 3) return { top: "35%", right: "1%", transform: "translateZ(0px) rotateY(-25deg)" };
+      if (visualIndex > 3) return { top: "20%", right: "1%" };
     }
-
     return { top: "20%", left: "50%" };
   }
 
+  const isMyTurn = gameState.turnIndex === myIndex;
+
+  const EMOTES = [
+    { label: "🥃", type: "SIP", tooltip: "Sip Drink" },
+    { label: "🎩", type: "TIP", tooltip: "Tip Hat" },
+    { label: "⌚", type: "CHECK", tooltip: "Check Watch" },
+    { label: "😰", type: "SWEAT", tooltip: "Nervous" }
+  ];
+
   return (
-    <div className="relative w-full h-screen bg-[#0a0a0a] overflow-hidden select-none font-sans text-gray-100 flex items-center justify-center perspective-1000">
+    <div className="relative w-full h-screen bg-[#050505] overflow-hidden select-none font-sans text-gray-100 flex items-center justify-center perspective-1000">
 
-      {/* 3D Table Surface */}
-      <div className="absolute w-[120%] h-[120%] bg-[#083015] transform rotate-x-20 origin-bottom shadow-[inset_0_0_150px_rgba(0,0,0,0.8)] border-[20px] border-[#3e2723] rounded-[50%] top-[-10%] flex items-center justify-center overflow-hidden">
-        {/* Felt Texture */}
-        <div className="absolute inset-0 opacity-40 bg-[url('https://www.transparenttextures.com/patterns/felt.png')] mix-blend-overlay" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/60" />
+      {gameState.isSpectating && <SpectatorBadge />}
 
-        {/* Center Logo/Mat */}
-        {/* Center Logo/Mat - REMOVED for clarity
-        <div className="w-[400px] h-[400px] rounded-full border-4 border-white/5 opacity-20 flex items-center justify-center transform rotate-x-60 scale-y-50">
-          <span className="text-6xl grayscale opacity-50">♠</span>
-        </div>
-        */}
+      {/* 3D Table Surface - VIP Velvet Edition */}
+      <div className="absolute w-[120%] h-[120%] bg-[#1a0520] transform rotate-x-20 origin-bottom shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] border-[25px] border-[#2a1a0a] rounded-[50%] top-[-10%] flex items-center justify-center overflow-hidden ring-1 ring-yellow-900/50">
+        <div className="absolute inset-0 opacity-60 bg-[url('https://www.transparenttextures.com/patterns/black-felt.png')]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(88,28,135,0.2)_0%,rgba(0,0,0,0.8)_80%)]" />
+        <div className="absolute w-[85%] h-[85%] rounded-[50%] border-2 border-yellow-600/20 opacity-50 pointer-events-none" />
       </div>
 
-      {/* Lighting / Vignette */}
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_30%,rgba(0,0,0,0.7)_90%)]" />
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_30%,rgba(0,0,0,0.85)_90%)]" />
 
-      {/* Top Bar (HUD) */}
+      {/* Top Bar - VIP Style */}
       <div className="absolute top-0 w-full p-6 flex justify-between items-center z-50 pointer-events-none">
         <div className="flex items-center gap-3 pointer-events-auto">
-          {onExit && (
-            <button onClick={onExit} className="px-4 py-2 bg-black/40 hover:bg-black/60 rounded-full text-gray-300 border border-white/10 backdrop-blur-md transition flex items-center gap-2">
-              <span>←</span> <span className="text-xs uppercase font-bold tracking-widest">Exit</span>
-            </button>
-          )}
+          <button onClick={() => navigate('/dashboard')} className="px-5 py-2 bg-black/60 hover:bg-red-950/50 rounded-lg text-gray-400 hover:text-red-400 border border-white/5 hover:border-red-500/30 backdrop-blur-md transition-all flex items-center gap-2 group">
+            <span className="group-hover:-translate-x-1 transition-transform">←</span> <span className="text-xs uppercase font-serif font-bold tracking-[0.2em]">Fold & Leave</span>
+          </button>
         </div>
 
-        {/* Timer / Turn Info */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-4 flex flex-col items-center">
-          <div className="text-xs uppercase tracking-[0.3em] text-yellow-500/80 mb-1 font-bold">
-            {players[turn]?.name}'s Turn
+        <div className="absolute left-1/2 -translate-x-1/2 top-6 flex flex-col items-center">
+          <div className="text-[10px] md:text-xs uppercase tracking-[0.4em] text-yellow-600/80 mb-2 font-serif font-bold">
+            {gameState.players[gameState.turnIndex]?.username === user.username ? "It is your turn" : `${gameState.players[gameState.turnIndex]?.username}'s Turn`}
           </div>
-          <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden">
+          <div className="w-32 h-0.5 bg-white/5 rounded-full overflow-hidden">
             <motion.div
-              className="h-full bg-yellow-500"
+              className={`h-full ${gameState.players[gameState.turnIndex]?.username === user.username ? "bg-yellow-500 box-shadow-[0_0_10px_rgba(234,179,8,0.5)]" : "bg-gray-600"}`}
               initial={{ width: "100%" }}
               animate={{ width: `${(timer / 15) * 100}%` }}
               transition={{ ease: "linear", duration: 1 }}
@@ -402,46 +308,81 @@ export default function GameBoard({ playersCount = 4, playerName = "You", player
         </div>
 
         <div className="flex gap-3 pointer-events-auto">
-          <button onClick={() => setHowOpen(true)} className="px-5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md transition">Rules</button>
-          <button onClick={initGame} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg transition">Restart</button>
+          <button onClick={() => setHowOpen(true)} className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-yellow-600/20 border border-white/10 hover:border-yellow-600/50 rounded-full text-yellow-600/80 transition-all font-serif italic font-bold">?</button>
         </div>
       </div>
 
-      {/* LOG (Subtle Notification) */}
+      {/* THE SIGNAL (Emote Bar) */}
+      <div className="absolute bottom-8 right-8 z-50 flex flex-col gap-2 pointer-events-auto">
+        {EMOTES.map(emote => (
+          <button
+            key={emote.type}
+            onClick={() => sendSignal(emote.type)}
+            className="w-12 h-12 bg-black/60 hover:bg-yellow-600/20 border border-white/10 hover:border-yellow-600/50 rounded-full flex items-center justify-center text-xl transition-all shadow-lg hover:scale-110 active:scale-95 group relative"
+          >
+            {emote.label}
+            <span className="absolute right-full mr-3 text-xs uppercase tracking-widest bg-black/80 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-yellow-500/80 pointer-events-none">
+              {emote.tooltip}
+            </span>
+          </button>
+        ))}
+      </div>
+
       <GameLog log={log} />
 
       {/* PLAYERS LAYER */}
       <div className="absolute inset-0 pointer-events-none" style={{ perspective: "1000px" }}>
         <AnimatePresence>
-          {players.map((p, idx) => {
-            const style = getPositionStyle(idx, players.length);
-            const isActive = turn === idx;
-            const isTarget = turn === 0 && getNextActivePlayer(0) === idx;
+          {rotatedPlayers.map((p, visualIdx) => {
+            const originalIdx = gameState.players.findIndex(gp => gp.username === p.username);
+            const style = getPositionStyle(visualIdx, gameState.players.length);
+            const isActive = gameState.turnIndex === originalIdx;
+            const isTarget = isMyTurn && visualIdx !== 0 && !p.finished;
+
+            // Check for active signals
+            const activeSignal = signals.find(s => s.username === p.username);
 
             return (
               <motion.div
-                key={p.id}
+                key={p.username}
                 initial={{ opacity: 0, scale: 0.8, y: 50 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 className="absolute pointer-events-auto"
                 style={style}
-                id={`avatar-${idx}`}
               >
-                {idx === 0 ? (
-                  // HUMAN
+                {/* Signal Bubble */}
+                <AnimatePresence>
+                  {activeSignal && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: -50 }}
+                      exit={{ opacity: 0, scale: 0.5, y: -80 }}
+                      className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white text-black text-3xl px-4 py-2 rounded-full shadow-2xl z-50 border-2 border-yellow-500"
+                    >
+                      {EMOTES.find(e => e.type === activeSignal.type)?.label}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {visualIdx === 0 ? (
+                  // ME (or Bottom Player if Spectating)
                   <div className="flex flex-col items-center w-full max-w-4xl">
-                    {/* Hand Container */}
                     <div className={`relative transition-all duration-500 ease-out ${isActive ? "translate-y-[-20px] scale-105" : "translate-y-0 scale-100"}`}>
-                      <div className={`
+
+                      {/* Only show Hand if NOT spectating */}
+                      {!gameState.isSpectating && (
+                        <div className={`
                                    p-8 pb-4 rounded-[3rem] backdrop-blur-xl transition-all duration-500
                                    ${isActive ? "bg-black/40 ring-1 ring-yellow-500/30 shadow-[0_0_50px_rgba(0,0,0,0.5)]" : "bg-black/20 ring-1 ring-white/5"}
                                `}>
-                        <Hand
-                          cards={p.hand}
-                          hideCards={false}
-                          onCardClick={() => { }}
-                        />
-                      </div>
+                          <Hand
+                            cards={gameState.myHand || []}
+                            hideCards={false}
+                            onCardClick={() => { }}
+                          />
+                        </div>
+                      )}
+
                       {isActive && (
                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-yellow-400 text-black px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest shadow-xl animate-bounce uppercase">
                           Your Action
@@ -449,50 +390,44 @@ export default function GameBoard({ playersCount = 4, playerName = "You", player
                       )}
                     </div>
 
-                    {/* Avatar (Situated "on" the table edge) */}
                     <div className="mt-6 transform translate-y-4">
                       <PlayerAvatar
-                        name="YOU"
+                        name={p.username}
                         isBot={false}
-                        cardCount={p.hand.length}
+                        cardCount={gameState.myHand?.length || 0}
                         isActive={isActive}
                         finished={p.finished}
                         discards={p.discards}
-                        avatar={playerAvatar}
+                        avatar={p.avatar}
                       />
                     </div>
                   </div>
                 ) : (
-                  // BOT
+                  // OPPONENTS
                   <div className="flex flex-col items-center gap-4 group">
                     <PlayerAvatar
-                      name={p.name}
-                      isBot={true}
-                      cardCount={p.hand.length}
+                      name={p.username}
+                      isBot={false}
+                      cardCount={p.handCount}
                       isActive={isActive}
                       finished={p.finished}
                       discards={p.discards}
                       isTarget={isTarget}
+                      avatar={p.avatar}
                     />
 
-                    {/* Bot Hand (Face Down) */}
                     <div className={`
                                transition-all duration-500 transform-style-3d
-                               ${isTarget ? "scale-110 z-30 filter drop-shadow-[0_0_20px_rgba(34,197,94,0.5)] -translate-y-2" : "scale-90 opacity-80 hover:opacity-100"}
+                               ${isTarget ? "scale-110 z-30 filter drop-shadow-[0_0_20px_rgba(34,197,94,0.5)] -translate-y-2 cursor-pointer" : "scale-90 opacity-80"}
                            `}>
                       {!p.finished && (
                         <Hand
-                          cards={p.hand}
+                          cards={Array(p.handCount).fill({ id: 'uk', rank: '?', suit: '?' })}
                           hideCards={true}
-                          onCardClick={(cardIdx) => handleHumanCardClick(idx, cardIdx)}
+                          onCardClick={(cardIdx) => isTarget && handleCardClick(originalIdx, cardIdx)}
                         />
                       )}
                     </div>
-                    {isTarget && (
-                      <div className="absolute -bottom-8 pointer-events-none text-green-400 text-[10px] font-bold uppercase tracking-widest animate-pulse bg-black/60 px-2 py-1 rounded backdrop-blur-sm border border-green-500/30">
-                        Target System Locked
-                      </div>
-                    )}
                   </div>
                 )}
               </motion.div>
@@ -501,15 +436,13 @@ export default function GameBoard({ playersCount = 4, playerName = "You", player
         </AnimatePresence>
       </div>
 
-      {/* Animation Layer (High Z-Index) */}
       <AnimatePresence>
         {movingCard && <MovingCardAnimation movingCard={movingCard} />}
       </AnimatePresence>
 
-      {/* Overlays */}
       {howOpen && <HowToPlay onClose={() => setHowOpen(false)} />}
       {winner && <WinnerPopup name={winner} onBack={() => setWinner(null)} />}
-      {loser && <WinnerModal loserName={loser} players={players} onRestart={initGame} />}
+      {loser && <WinnerModal loserName={loser} players={gameState?.players} onRestart={() => navigate('/dashboard')} />}
 
     </div>
   );

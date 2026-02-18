@@ -1,72 +1,59 @@
-import React, { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import GameBoard from "./components/GameBoard";
-import HowToPlay from "./components/HowToPlay";
+
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { SocketProvider } from "./context/SocketContext";
 import LandingPage from "./components/LandingPage";
+import Login from "./components/auth/Login";
+import Register from "./components/auth/Register";
+import Dashboard from "./components/Dashboard";
 import Lobby from "./components/Lobby";
+import GameBoard from "./components/GameBoard";
+
+function PrivateRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white">Loading protocols...</div>;
+  return user ? children : <Navigate to="/login" />;
+}
 
 export default function App() {
-  const [screen, setScreen] = useState("landing"); // 'landing', 'lobby', 'game'
-  const [playersCount, setPlayersCount] = useState(4);
-  const [playerName, setPlayerName] = useState("Player");
-  const [playerAvatar, setPlayerAvatar] = useState("😎"); // Default avatar
-  const [showHow, setShowHow] = useState(false);
-
-  // Navigation Handlers
-  const goLobby = () => setScreen("lobby");
-  const goBack = () => setScreen("landing");
-
-  const handleStartGame = (mode, name, avatar) => {
-    setPlayersCount(mode);
-    setPlayerName(name);
-    setPlayerAvatar(avatar); // Store avatar
-    setScreen("game");
-  };
-
-  const handleReturnToMenu = () => {
-    setScreen("landing");
-  };
-
   return (
-    <>
-      <AnimatePresence mode="wait">
-        {screen === "landing" && (
-          <motion.div
-            key="landing"
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.5 }}
-          >
-            <LandingPage onPlay={goLobby} onHowTo={() => setShowHow(true)} />
-          </motion.div>
-        )}
+    <Router>
+      <AuthProvider>
+        <SocketProvider>
+          <Routes>
+            <Route path="/" element={<LandingPageWrapper />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-        {screen === "lobby" && (
-          <motion.div
-            key="lobby"
-          >
-            <Lobby onStartGame={handleStartGame} onBack={goBack} />
-          </motion.div>
-        )}
+            <Route path="/dashboard" element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            } />
 
-        {screen === "game" && (
-          <motion.div
-            key="game"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="min-h-screen w-full bg-black"
-          >
-            <GameBoard
-              playersCount={playersCount}
-              playerName={playerName}
-              playerAvatar={playerAvatar}
-              onExit={handleReturnToMenu}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Route path="/lobby" element={
+              <PrivateRoute>
+                <Lobby />
+              </PrivateRoute>
+            } />
 
-      {showHow && <HowToPlay onClose={() => setShowHow(false)} />}
-    </>
+            <Route path="/game/:lobbyId" element={
+              <PrivateRoute>
+                <GameBoard />
+              </PrivateRoute>
+            } />
+
+          </Routes>
+        </SocketProvider>
+      </AuthProvider>
+    </Router>
   );
 }
+
+function LandingPageWrapper() {
+  const { user } = useAuth();
+  if (user) return <Navigate to="/dashboard" />;
+  return <LandingPage onPlay={() => window.location.href = '/login'} onHowTo={() => { }} />; // Simplified for now
+}
+

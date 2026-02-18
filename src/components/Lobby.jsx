@@ -1,186 +1,254 @@
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useSocket } from "../context/SocketContext";
+import { useAuth } from "../context/AuthContext";
+import { motion } from "framer-motion";
 
 const AVATARS = ["😎", "🤖", "🦊", "👽", "🤠", "👻", "🦄", "🐱"];
 
-export default function Lobby({ onStartGame, onBack }) {
-    const [playerName, setPlayerName] = useState("Player 1");
+export default function Lobby() {
+    const { state } = useLocation(); // { lobbyId, isHost }
+    const { user } = useAuth();
+    const socket = useSocket();
+    const navigate = useNavigate();
+
+    const [players, setPlayers] = useState([]);
+    const [lobbyId, setLobbyId] = useState(state?.lobbyId || "");
     const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0]);
-    const [mode, setMode] = useState(null); // 2 or 4
+    const [error, setError] = useState("");
+    const [settings, setSettings] = useState({
+        speedProtocol: false,
+        blindFaith: false,
+        jokersWild: false
+    });
+
+    useEffect(() => {
+        if (!socket || !lobbyId) return;
+
+        // If joiner, emit join
+        if (!state?.isHost) {
+            socket.emit('joinLobby', { lobbyId, username: user.username, avatar: selectedAvatar });
+        }
+
+        socket.on('playerJoined', ({ players }) => {
+            setPlayers(players);
+        });
+
+        socket.on('lobbyCreated', ({ players }) => {
+            setPlayers(players);
+        });
+
+        socket.on('settingsUpdated', (newSettings) => {
+            setSettings(newSettings);
+        });
+
+        socket.on('kicked', () => {
+            navigate('/dashboard');
+            alert("You have been removed from the suite.");
+        });
+
+        socket.on('gameStarted', () => {
+            navigate(`/game/${lobbyId}`);
+        });
+
+        socket.on('error', (err) => setError(err));
+
+        return () => {
+            socket.off('playerJoined');
+            socket.off('lobbyCreated');
+            socket.off('settingsUpdated');
+            socket.off('kicked');
+            socket.off('gameStarted');
+            socket.off('error');
+        };
+    }, [socket, lobbyId, state, user, selectedAvatar, navigate]);
+
 
     const handleStart = () => {
-        if (mode && playerName) {
-            onStartGame(mode, playerName, selectedAvatar);
+        socket.emit('startGame', { lobbyId });
+    };
+
+    const handleKick = (playerId) => {
+        if (window.confirm("Remove this guest from the suite?")) {
+            socket.emit('kickPlayer', { lobbyId, targetId: playerId });
         }
     };
 
+    const toggleSetting = (key) => {
+        if (!state?.isHost) return;
+        const newSettings = { ...settings, [key]: !settings[key] };
+        setSettings(newSettings);
+        socket.emit('updateSettings', { lobbyId, settings: newSettings });
+    };
+
+    const copyCode = () => {
+        navigator.clipboard.writeText(lobbyId);
+        alert("Invitation Code copied to clipboard.");
+    };
+
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="min-h-screen w-full flex items-center justify-center bg-[#0f172a] relative overflow-hidden text-white p-4 md:p-8"
-        >
-            {/* Background Ambience */}
-            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900 via-[#0f172a] to-[#0f172a]" />
-            <div className="absolute w-[800px] h-[800px] bg-purple-600/10 rounded-full blur-[120px] top-[-20%] left-[-10%] animate-pulse" />
-            <div className="absolute w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[100px] bottom-[-20%] right-[-10%]" />
+        <div className="min-h-screen bg-plush text-amber-50 flex items-center justify-center p-4 font-serif relative overflow-hidden">
+            {/* Ambient Lighting */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-900/10 rounded-full blur-[120px] pointer-events-none" />
 
-            <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="relative z-10 w-full max-w-5xl bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row"
-            >
-                {/* LEFT PANEL: IDENTITY */}
-                <div className="w-full md:w-1/3 p-8 border-b md:border-b-0 md:border-r border-white/10 bg-black/20 flex flex-col items-center justify-center relative">
-                    <button
-                        onClick={onBack}
-                        className="absolute top-6 left-6 text-gray-400 hover:text-white transition flex items-center gap-2 text-sm uppercase tracking-wider font-bold"
-                    >
-                        ← Back
-                    </button>
+            <div className="max-w-6xl w-full bg-black/80 border-gold rounded-3xl p-8 lg:p-10 shadow-plush relative z-10 backdrop-blur-xl">
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-yellow-600/50 to-transparent" />
 
-                    <div className="mt-12 mb-8">
-                        <h3 className="text-xs uppercase tracking-[0.2em] text-indigo-300 font-bold mb-6 text-center">
-                            Identity Protocol
-                        </h3>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_#22c55e]" />
+                            <span className="text-xs uppercase tracking-[0.3em] text-yellow-500/60 font-sans">Secure Channel</span>
+                        </div>
+                        <h2 className="text-4xl md:text-5xl font-bold text-gold tracking-tight">PRIVATE SUITE</h2>
+                    </div>
 
-                        {/* Avatar Selector */}
-                        <div className="relative w-32 h-32 mx-auto mb-6 group">
-                            <div className="absolute inset-0 bg-indigo-500/30 rounded-full blur-xl group-hover:bg-indigo-500/50 transition-all duration-500" />
-                            <div className="relative w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 rounded-full border-2 border-white/20 flex items-center justify-center text-6xl shadow-2xl overflow-hidden">
-                                <AnimatePresence mode="wait">
-                                    <motion.span
-                                        key={selectedAvatar}
-                                        initial={{ y: 20, opacity: 0 }}
-                                        animate={{ y: 0, opacity: 1 }}
-                                        exit={{ y: -20, opacity: 0 }}
+                    <div className="flex flex-col items-end gap-2">
+                        <span className="text-xs uppercase tracking-widest text-gray-500 font-sans">VIP Access Code</span>
+                        <div
+                            className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 px-6 py-2 rounded-xl cursor-pointer transition-all group"
+                            onClick={copyCode}
+                        >
+                            <span className="font-mono text-2xl tracking-[0.2em] text-white group-hover:text-gold transition-colors">{lobbyId}</span>
+                            <span className="text-xs uppercase bg-yellow-600/20 text-yellow-500 px-3 py-1 rounded border border-yellow-600/30">Copy</span>
+                        </div>
+                    </div>
+                </div>
+
+                {error && <div className="bg-red-900/20 border border-red-500/20 text-red-300 p-4 rounded-xl mb-8 text-center font-sans">{error}</div>}
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+
+                    {/* LEFT PANEL: Player List (8 cols) */}
+                    <div className="lg:col-span-8">
+                        <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400 mb-6 font-sans border-b border-white/5 pb-2">Guest List</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {players.map((p, i) => (
+                                <motion.div
+                                    key={i}
+                                    initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                                    className="relative flex items-center gap-4 bg-gradient-to-br from-gray-900 to-black p-4 rounded-xl border border-white/5 hover:border-yellow-500/30 transition-colors group shadow-lg overflow-hidden"
+                                >
+                                    <div className="relative">
+                                        <div className="w-14 h-14 rounded-full bg-gradient-to-b from-gray-800 to-black p-0.5 border border-yellow-500/30">
+                                            <div className="w-full h-full rounded-full flex items-center justify-center text-2xl bg-black/50">
+                                                {p.avatar || "👤"}
+                                            </div>
+                                        </div>
+                                        {p.isHost && (
+                                            <div className="absolute -bottom-1 -right-1 bg-yellow-600 text-black text-[10px] font-bold px-1.5 py-0.5 rounded border border-yellow-400 shadow-sm">
+                                                HOST
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="font-bold text-lg text-white group-hover:text-gold transition-colors">{p.username}</div>
+                                        <div className="text-xs text-gray-500 uppercase font-bold tracking-wider font-sans">
+                                            {p.isHost ? "Suite Owner" : "Invited Guest"}
+                                        </div>
+                                    </div>
+
+                                    {/* The Bouncer (Kick Button) */}
+                                    {state?.isHost && !p.isHost && (
+                                        <button
+                                            onClick={() => handleKick(p.id)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-red-900/20 hover:bg-red-900/50 text-red-500 p-2 rounded-lg transition-all border border-red-500/20"
+                                            title="Remove Guest"
+                                        >
+                                            🚫
+                                        </button>
+                                    )}
+                                </motion.div>
+                            ))}
+
+                            {/* Empty slots */}
+                            {[...Array(Math.max(0, 4 - players.length))].map((_, i) => (
+                                <div key={`empty-${i}`} className="flex items-center gap-4 p-4 rounded-xl border border-dashed border-white/10 opacity-30 select-none">
+                                    <div className="w-14 h-14 rounded-full bg-white/5" />
+                                    <div className="h-4 w-24 bg-white/5 rounded" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* RIGHT PANEL: Settings & Controls (4 cols) */}
+                    <div className="lg:col-span-4 flex flex-col gap-6">
+
+                        {/* House Rules */}
+                        <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
+                            <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-gold mb-4 font-sans">House Rules</h3>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between p-3 bg-black/40 rounded-lg border border-white/5">
+                                    <div>
+                                        <div className="text-sm font-bold text-gray-200">Speed Protocol</div>
+                                        <div className="text-[10px] text-gray-500 uppercase tracking-wider">10s Turn Timer</div>
+                                    </div>
+                                    <button
+                                        disabled={!state?.isHost}
+                                        onClick={() => toggleSetting('speedProtocol')}
+                                        className={`w-10 h-6 rounded-full p-1 transition-colors ${settings.speedProtocol ? 'bg-yellow-600' : 'bg-gray-700'}`}
                                     >
-                                        {selectedAvatar}
-                                    </motion.span>
-                                </AnimatePresence>
+                                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${settings.speedProtocol ? 'translate-x-4' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 bg-black/40 rounded-lg border border-white/5">
+                                    <div>
+                                        <div className="text-sm font-bold text-gray-200">Blind Faith</div>
+                                        <div className="text-[10px] text-gray-500 uppercase tracking-wider">Shuffle on Turn</div>
+                                    </div>
+                                    <button
+                                        disabled={!state?.isHost}
+                                        onClick={() => toggleSetting('blindFaith')}
+                                        className={`w-10 h-6 rounded-full p-1 transition-colors ${settings.blindFaith ? 'bg-purple-600' : 'bg-gray-700'}`}
+                                    >
+                                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${settings.blindFaith ? 'translate-x-4' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Avatar Grid */}
-                        <div className="grid grid-cols-4 gap-2 mb-8">
-                            {AVATARS.map((av) => (
+                        {/* Controls */}
+                        <div className="bg-gradient-to-b from-gray-800/40 to-black/40 border border-white/5 rounded-2xl p-8 text-center backdrop-blur-sm mt-auto">
+                            <h4 className="text-gray-400 font-sans text-xs uppercase tracking-widest mb-4">Suite Status</h4>
+                            <div className="text-2xl font-light italic text-yellow-100/80 mb-8">
+                                {players.length < 2 ? "Awaiting guests..." : "Table is ready."}
+                            </div>
+
+                            {state?.isHost ? (
                                 <button
-                                    key={av}
-                                    onClick={() => setSelectedAvatar(av)}
-                                    className={`
-                    w-10 h-10 rounded-lg flex items-center justify-center text-xl transition-all
-                    ${selectedAvatar === av
-                                            ? "bg-indigo-600 shadow-lg scale-110 ring-2 ring-indigo-400"
-                                            : "bg-white/5 hover:bg-white/10"}
-                  `}
+                                    onClick={handleStart}
+                                    disabled={players.length < 2}
+                                    className={`w-full py-4 rounded-xl font-bold text-lg uppercase tracking-[0.2em] transition-all duration-300 relative overflow-hidden group ${players.length < 2 ? "bg-gray-800 text-gray-600 cursor-not-allowed border border-white/5" : "bg-gradient-to-r from-yellow-600 to-yellow-700 text-black hover:shadow-[0_0_30px_rgba(202,138,4,0.3)] shadow-[0_0_15px_rgba(202,138,4,0.1)] border border-yellow-500/50"}`}
                                 >
-                                    {av}
+                                    <span className="relative z-10">Deal Cards</span>
+                                    {players.length >= 2 && <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />}
                                 </button>
-                            ))}
-                        </div>
-
-                        {/* Name Input */}
-                        <div className="space-y-2 w-full">
-                            <label className="text-xs uppercase text-gray-500 font-bold ml-1">Codename</label>
-                            <input
-                                type="text"
-                                value={playerName}
-                                onChange={(e) => setPlayerName(e.target.value)}
-                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-center font-bold text-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder-gray-700"
-                                placeholder="ENTER NAME"
-                                maxLength={12}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* RIGHT PANEL: MISSION CONTROL */}
-                <div className="w-full md:w-2/3 p-8 flex flex-col relative overflow-hidden">
-                    {/* Decorative Grid Background */}
-                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
-                        style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }}
-                    />
-
-                    <div className="relative z-10 flex-1 flex flex-col justify-center">
-                        <h2 className="text-4xl md:text-5xl font-black mb-2 text-white">
-                            MISSION SELECT
-                        </h2>
-                        <p className="text-indigo-200 mb-10 text-lg font-light">
-                            Choose your engagement rules.
-                        </p>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12">
-                            {/* Mode: Duel */}
-                            <button
-                                onClick={() => setMode(2)}
-                                className={`
-                  group relative h-64 rounded-2xl border transition-all duration-300 overflow-hidden text-left p-6 flex flex-col justify-end
-                  ${mode === 2
-                                        ? "bg-indigo-900/40 border-indigo-400 shadow-[0_0_30px_rgba(99,102,241,0.2)]"
-                                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"}
-                `}
-                            >
-                                <div className="absolute top-4 right-4 text-xs font-bold px-2 py-1 rounded bg-black/40 text-gray-300 border border-white/10">1 VS 1</div>
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-
-                                {/* Icon/Visual */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-8xl opacity-10 group-hover:scale-110 transition-transform duration-500">
-                                    ⚔️
+                            ) : (
+                                <div className="flex flex-col items-center gap-4">
+                                    <div className="flex items-center justify-center gap-2 text-gray-500 text-sm font-sans uppercase tracking-widest animate-pulse">
+                                        <span className="w-1.5 h-1.5 bg-gray-500 rounded-full" />
+                                        Waiting for Host
+                                        <span className="w-1.5 h-1.5 bg-gray-500 rounded-full" />
+                                    </div>
+                                    <button
+                                        onClick={() => socket.emit('joinSpectator', { lobbyId, username: user.username })}
+                                        className="text-xs text-yellow-600/50 hover:text-yellow-500 uppercase font-bold tracking-widest border-b border-transparent hover:border-yellow-500/50 transition-all font-sans"
+                                    >
+                                        Join as Spectator
+                                    </button>
                                 </div>
+                            )}
 
-                                <div className="relative z-10">
-                                    <h3 className={`text-2xl font-bold mb-1 transition-colors ${mode === 2 ? "text-indigo-300" : "text-white"}`}>DUEL</h3>
-                                    <p className="text-sm text-gray-400">Tactical face-off against a single rogue AI.</p>
-                                </div>
-
-                                {mode === 2 && <motion.div layoutId="mode-border" className="absolute inset-0 border-2 border-indigo-400 rounded-2xl" />}
-                            </button>
-
-                            {/* Mode: Table */}
-                            <button
-                                onClick={() => setMode(4)}
-                                className={`
-                  group relative h-64 rounded-2xl border transition-all duration-300 overflow-hidden text-left p-6 flex flex-col justify-end
-                  ${mode === 4
-                                        ? "bg-purple-900/40 border-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.2)]"
-                                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"}
-                `}
-                            >
-                                <div className="absolute top-4 right-4 text-xs font-bold px-2 py-1 rounded bg-black/40 text-gray-300 border border-white/10">4 PLAYERS</div>
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-8xl opacity-10 group-hover:scale-110 transition-transform duration-500">
-                                    🏛️
-                                </div>
-
-                                <div className="relative z-10">
-                                    <h3 className={`text-2xl font-bold mb-1 transition-colors ${mode === 4 ? "text-purple-300" : "text-white"}`}>CHAOS</h3>
-                                    <p className="text-sm text-gray-400">Full table mayhem with 3 unpredictable bots.</p>
-                                </div>
-
-                                {mode === 4 && <motion.div layoutId="mode-border" className="absolute inset-0 border-2 border-purple-400 rounded-2xl" />}
+                            <button onClick={() => navigate('/dashboard')} className="mt-6 text-xs text-red-500/50 hover:text-red-400 uppercase font-bold tracking-widest border-b border-transparent hover:border-red-500/50 transition-all font-sans">
+                                Leave Suite
                             </button>
                         </div>
                     </div>
-
-                    <div className="relative z-10">
-                        <button
-                            onClick={handleStart}
-                            disabled={!mode || !playerName}
-                            className={`
-                w-full py-5 rounded-xl font-black tracking-[0.2em] text-lg uppercase transition-all duration-300
-                ${mode && playerName
-                                    ? "bg-white text-black shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:scale-[1.02] hover:shadow-[0_0_60px_rgba(255,255,255,0.5)]"
-                                    : "bg-gray-800 text-gray-600 cursor-not-allowed"}
-              `}
-                        >
-                            Initialize Game
-                        </button>
-                    </div>
                 </div>
-            </motion.div>
-        </motion.div>
+            </div>
+        </div>
     );
 }
+

@@ -1,0 +1,24 @@
+{
+  "users": [
+    {
+      "id": "ORtP-HA3q1Dey0nveC6Zu",
+      "username": "qwerty@gmail.com",
+      "password": "$2b$10$V67Fk6EmSQUEdHEgBhWlYexOybWITsXbxUOB6Wp4UCwjiKHeTPnwu",
+      "stats": {
+        "wins": 0,
+        "losses": 0,
+        "matches": 0
+      }
+    },
+    {
+      "id": "Ec4uTYxaHBryusqVtwMzb",
+      "username": "shivam@gmail.com",
+      "password": "$2b$10$cpWef6VWemt1nLJUe2fqU.rmB/ATuVAwjBkWWH505HaTBEnGaPdoe",
+      "stats": {
+        "wins": 0,
+        "losses": 0,
+        "matches": 0
+      }
+    }
+  ]
+}
