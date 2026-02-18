@@ -10,7 +10,8 @@ export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
 
     useEffect(() => {
-        const newSocket = io("http://localhost:3001");
+        const socketUrl = import.meta.env.VITE_SERVER_URL || (import.meta.env.DEV ? "http://localhost:3001" : "/");
+        const newSocket = io(socketUrl);
         setSocket(newSocket);
 
         return () => newSocket.close();

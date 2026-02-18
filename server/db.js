@@ -1,29 +1,41 @@
-
-import { Low } from 'lowdb';
-import { JSONFile } from 'lowdb/node';
-import { nanoid } from 'nanoid';
+import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-// Setup LowDB
-const adapter = new JSONFile('db.json');
-const db = new Low(adapter, { users: [] });
+// --- Mongoose Schema ---
+const userSchema = new mongoose.Schema({
+    username: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    stats: {
+        wins: { type: Number, default: 0 },
+        losses: { type: Number, default: 0 },
+        matches: { type: Number, default: 0 },
+        timesQueenHeld: { type: Number, default: 0 },
+        rivals: { type: Map, of: Number, default: {} } // Map for storing rival counts
+    }
+});
+
+const User = mongoose.model('User', userSchema);
+
+// --- DB Functions ---
 
 export async function initDB() {
-    await db.read();
-    db.data ||= { users: [] };
-    await db.write();
+    const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/fools-fortune';
+    try {
+        await mongoose.connect(mongoURI);
+        console.log('Connected to MongoDB');
+    } catch (error) {
+        console.error('MongoDB connection error:', error);
+        process.exit(1); // Exit if DB connection fails
+    }
 }
 
 export async function getUser(username) {
-    await db.read();
-    return db.data.users.find(u => u.username === username);
+    return await User.findOne({ username });
 }
 
 export async function createUser(username, password) {
-    await db.read();
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = {
-        id: nanoid(),
+    const newUser = new User({
         username,
         password: hashedPassword,
         stats: {
@@ -31,29 +43,22 @@ export async function createUser(username, password) {
             losses: 0,
             matches: 0,
             timesQueenHeld: 0,
-            rivals: {} // username -> count of times lost to them
+            rivals: {}
         }
-    };
-    db.data.users.push(newUser);
-    await db.write();
-    return newUser;
+    });
+    return await newUser.save();
 }
 
 export async function verifyUser(username, password) {
-    await db.read(); // Ensure fresh data
-    const user = db.data.users.find(u => u.username === username);
+    const user = await User.findOne({ username });
     if (!user) return null;
     const match = await bcrypt.compare(password, user.password);
     return match ? user : null;
 }
 
-export async function updateUserStats(username, result, details = {}) { // result: 'win' | 'loss', details: { winner: string, heldQueen: boolean }
-    await db.read();
-    const user = db.data.users.find(u => u.username === username);
+export async function updateUserStats(username, result, details = {}) {
+    const user = await User.findOne({ username });
     if (!user) return;
-
-    if (!user.stats.timesQueenHeld) user.stats.timesQueenHeld = 0;
-    if (!user.stats.rivals) user.stats.rivals = {};
 
     user.stats.matches += 1;
 
@@ -68,17 +73,16 @@ export async function updateUserStats(username, result, details = {}) { // resul
         }
         if (details.winner) {
             const rival = details.winner;
-            user.stats.rivals[rival] = (user.stats.rivals[rival] || 0) + 1;
+            // Handle Map for rivals
+            const currentCount = user.stats.rivals.get(rival) || 0;
+            user.stats.rivals.set(rival, currentCount + 1);
         }
     }
 
-    await db.write();
+    await user.save();
 }
 
 export async function getTopPlayers() {
-    await db.read();
-    return db.data.users
-        .map(u => ({ username: u.username, wins: u.stats.wins }))
-        .sort((a, b) => b.wins - a.wins)
-        .slice(0, 10);
+    const users = await User.find().sort({ 'stats.wins': -1 }).limit(10);
+    return users.map(u => ({ username: u.username, wins: u.stats.wins }));
 }

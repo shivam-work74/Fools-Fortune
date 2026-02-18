@@ -1,10 +1,16 @@
 
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { initDB, getUser, createUser, verifyUser, updateUserStats, getTopPlayers } from './db.js';
 import { handleGameEvents } from './gameManager.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const httpServer = createServer(app);
@@ -55,6 +61,13 @@ io.on('connection', (socket) => {
     });
 });
 
+// --- Serve Static Files ---
+app.use(express.static(path.join(__dirname, '../dist')));
+
+app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
 // --- Start Server ---
 
 const PORT = process.env.PORT || 3001;
@@ -62,5 +75,14 @@ const PORT = process.env.PORT || 3001;
 initDB().then(() => {
     httpServer.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);
+    });
+
+    httpServer.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.error(`Port ${PORT} is already in use. Please stop the other process and try again.`);
+            process.exit(1);
+        } else {
+            throw err;
+        }
     });
 });

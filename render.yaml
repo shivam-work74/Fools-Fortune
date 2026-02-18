@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: fools-fortune-server
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run server
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: NODE_VERSION
+        value: 20.x
+    disk:
+        name: fools-fortune-disk
+        mountPath: /var/lib/data
+        sizeGB: 1
