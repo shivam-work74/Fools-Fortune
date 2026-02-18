@@ -6,6 +6,8 @@ import { useSocket } from "../context/SocketContext";
 import { motion } from "framer-motion";
 import axios from "axios";
 
+const API_BASE = import.meta.env.VITE_SERVER_URL || (import.meta.env.DEV ? "http://localhost:3001" : "");
+
 export default function Dashboard() {
     const { user, logout } = useAuth();
     const socket = useSocket();
@@ -14,7 +16,7 @@ export default function Dashboard() {
     const [joinId, setJoinId] = useState("");
 
     useEffect(() => {
-        axios.get("http://localhost:3001/api/leaderboard").then(res => setLeaderboard(res.data));
+        axios.get(`${API_BASE}/api/leaderboard`).then(res => setLeaderboard(res.data));
 
         if (socket) {
             socket.on('lobbyCreated', ({ lobbyId }) => {
