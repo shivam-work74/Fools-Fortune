@@ -9,6 +9,8 @@ import Register from "./components/auth/Register";
 import Dashboard from "./components/Dashboard";
 import Lobby from "./components/Lobby";
 import GameBoard from "./components/GameBoard";
+import UnoLobby from "./components/uno/UnoLobby";
+import UnoGameBoard from "./components/uno/UnoGameBoard";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -27,21 +29,23 @@ export default function App() {
             <Route path="/register" element={<Register />} />
 
             <Route path="/dashboard" element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
+              <PrivateRoute><Dashboard /></PrivateRoute>
             } />
 
+            {/* Old Maid / Fool's Fortune */}
             <Route path="/lobby" element={
-              <PrivateRoute>
-                <Lobby />
-              </PrivateRoute>
+              <PrivateRoute><Lobby /></PrivateRoute>
+            } />
+            <Route path="/game/:lobbyId" element={
+              <PrivateRoute><GameBoard /></PrivateRoute>
             } />
 
-            <Route path="/game/:lobbyId" element={
-              <PrivateRoute>
-                <GameBoard />
-              </PrivateRoute>
+            {/* UNO */}
+            <Route path="/uno-lobby" element={
+              <PrivateRoute><UnoLobby /></PrivateRoute>
+            } />
+            <Route path="/uno/:lobbyId" element={
+              <PrivateRoute><UnoGameBoard /></PrivateRoute>
             } />
 
           </Routes>
@@ -56,4 +60,3 @@ function LandingPageWrapper() {
   if (user) return <Navigate to="/dashboard" />;
   return <LandingPage />;
 }
-

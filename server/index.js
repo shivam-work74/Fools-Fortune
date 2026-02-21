@@ -6,6 +6,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { initDB, getUser, createUser, verifyUser, updateUserStats, getTopPlayers } from './db.js';
 import { handleGameEvents } from './gameManager.js';
+import { handleUnoEvents } from './unoManager.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -55,6 +56,7 @@ app.get('/api/leaderboard', async (req, res) => {
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
     handleGameEvents(io, socket);
+    handleUnoEvents(io, socket);
 
     socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);

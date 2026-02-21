@@ -16,37 +16,49 @@ export default function Dashboard() {
     const [joinId, setJoinId] = useState("");
 
     useEffect(() => {
-        axios.get(`${API_BASE}/api/leaderboard`).then(res => setLeaderboard(res.data));
+        axios.get(`${API_BASE}/api/leaderboard`).then(res => setLeaderboard(res.data)).catch(() => { });
 
         if (socket) {
             socket.on('lobbyCreated', ({ lobbyId }) => {
                 navigate(`/lobby`, { state: { lobbyId, isHost: true } });
             });
-
-            socket.on('playerJoined', ({ players }) => {
-                // Handled in Lobby
+            socket.on('uno:lobbyCreated', ({ lobbyId }) => {
+                navigate(`/uno-lobby`, { state: { lobbyId, isHost: true } });
             });
-
             socket.on('error', (err) => alert(err));
         }
-        return () => socket?.off('lobbyCreated');
+        return () => {
+            socket?.off('lobbyCreated');
+            socket?.off('uno:lobbyCreated');
+        };
     }, [socket, navigate]);
 
     const handleCreateLobby = (mode) => {
         socket.emit('createLobby', { username: user.username, avatar: "🎩", mode });
     };
 
+    const handleCreateUnoLobby = (maxPlayers) => {
+        socket.emit('uno:createLobby', { username: user.username, avatar: "🃏", maxPlayers });
+    };
+
     const handleJoinLobby = () => {
-        if (!joinId) return;
-        navigate(`/lobby`, { state: { lobbyId: joinId, isHost: false } });
+        const id = joinId.trim();
+        if (!id) return;
+        // UNO codes start with "UNO-"
+        if (id.startsWith('UNO-')) {
+            navigate(`/uno-lobby`, { state: { lobbyId: id, isHost: false } });
+        } else {
+            navigate(`/lobby`, { state: { lobbyId: id, isHost: false } });
+        }
     };
 
     return (
-        <div className="min-h-screen bg-plush text-amber-50 p-6 font-serif overflow-hidden relative">
-            {/* Decorative Background Elements */}
+        <div className="min-h-screen bg-plush text-amber-50 p-6 font-serif overflow-y-auto relative">
+            {/* Decorative Background */}
             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-purple-900/10 to-black/80 pointer-events-none" />
             <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-600/20 rounded-full blur-[100px] pointer-events-none" />
             <div className="absolute top-20 -left-20 w-72 h-72 bg-yellow-600/10 rounded-full blur-[80px] pointer-events-none" />
+            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-900/10 rounded-full blur-[120px] pointer-events-none" />
 
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
 
@@ -54,12 +66,11 @@ export default function Dashboard() {
                 <div className="lg:col-span-4 space-y-8 lg:pt-16">
                     {/* Membership Card */}
                     <motion.div
-                        initial={{ x: -30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.6, ease: "easeOut" }}
-                        className="bg-black/60 border-gold backdrop-blur-md rounded-xl p-6 shadow-plush relative overflow-hidden group"
+                        initial={{ x: -30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.6 }}
+                        className="bg-black/60 border-gold backdrop-blur-md rounded-xl p-6 shadow-plush relative overflow-hidden"
                     >
                         <div className="absolute top-0 right-0 p-4 opacity-20 text-6xl text-yellow-500 rotate-12">♛</div>
-
-                        <div className="flex items-center gap-4 mb-6 relative">
+                        <div className="flex items-center gap-4 mb-6">
                             <div className="w-20 h-20 rounded-full border-2 border-yellow-500/50 p-1 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
                                 <div className="w-full h-full rounded-full bg-gradient-to-b from-gray-700 to-black flex items-center justify-center text-3xl">
                                     {user.avatar || "🎩"}
@@ -86,7 +97,7 @@ export default function Dashboard() {
                             </div>
                             <div className="bg-white/5 p-3 rounded-lg border border-white/5">
                                 <span className="block text-sm font-bold text-yellow-500 truncate">
-                                    {Object.entries(user.stats.rivals || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || "-"}
+                                    {Object.entries(user.stats.rivals || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || "—"}
                                 </span>
                                 <span className="text-[10px] uppercase text-gray-400 tracking-widest font-sans">Nemesis</span>
                             </div>
@@ -117,74 +128,142 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* Right Column: Main Lounge Area */}
-                <div className="lg:col-span-8 space-y-8">
+                {/* Right Column: Game Rooms */}
+                <div className="lg:col-span-8 space-y-10">
                     <motion.div
                         initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, duration: 0.6 }}
-                        className="text-center py-8"
+                        className="text-center py-6"
                     >
-                        <h1 className="text-6xl md:text-7xl font-bold text-gold mb-2 tracking-tighter drop-shadow-2xl">FOOL'S GATHERING</h1>
-                        <p className="text-xl text-yellow-100/50 font-light tracking-widest font-sans uppercase">High Stakes. Zero Mercy.</p>
+                        <h1 className="text-5xl md:text-6xl font-bold text-gold mb-2 tracking-tighter drop-shadow-2xl">THE GAME ROOM</h1>
+                        <p className="text-lg text-yellow-100/50 font-light tracking-widest font-sans uppercase">Choose Your Table</p>
                     </motion.div>
 
-                    {/* Host a Table */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <motion.button
-                            whileHover={{ scale: 1.02, translateY: -5 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => handleCreateLobby(2)}
-                            className="relative h-64 bg-gradient-to-br from-gray-900 to-black border-gold rounded-2xl p-8 text-left group overflow-hidden shadow-plush"
-                        >
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
-                            <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:opacity-100 group-hover:text-gold transition-all duration-500">⚔️</div>
+                    {/* ── FOOL'S FORTUNE (Old Maid) ── */}
+                    <div>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="h-px flex-1 bg-yellow-500/10" />
+                            <span className="text-xs font-sans uppercase tracking-[0.3em] text-yellow-500/50 flex items-center gap-2">
+                                <span>♠</span> Fool's Fortune <span>♠</span>
+                            </span>
+                            <div className="h-px flex-1 bg-yellow-500/10" />
+                        </div>
 
-                            <div className="relative z-10 flex flex-col h-full justify-between">
-                                <div>
-                                    <h3 className="text-3xl font-bold text-white group-hover:text-gold transition-colors mb-2">The Duel</h3>
-                                    <div className="h-0.5 w-12 bg-yellow-600/50 group-hover:w-24 transition-all duration-500" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <motion.button
+                                whileHover={{ scale: 1.02, translateY: -5 }} whileTap={{ scale: 0.98 }}
+                                onClick={() => handleCreateLobby(2)}
+                                className="relative h-56 bg-gradient-to-br from-gray-900 to-black border-gold rounded-2xl p-8 text-left group overflow-hidden shadow-plush"
+                            >
+                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
+                                <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:opacity-100 group-hover:text-gold transition-all duration-500">⚔️</div>
+                                <div className="relative z-10 flex flex-col h-full justify-between">
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-white group-hover:text-gold transition-colors mb-2">The Duel</h3>
+                                        <div className="h-0.5 w-12 bg-yellow-600/50 group-hover:w-24 transition-all duration-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-400 text-sm font-sans mb-1">1 vs 1 • Old Maid Rules</p>
+                                        <p className="text-yellow-500/60 text-xs uppercase tracking-widest font-sans">Open Private Suite</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-gray-400 text-sm font-sans mb-1">1 vs 1 • Classic Rules</p>
-                                    <p className="text-yellow-500/60 text-xs uppercase tracking-widest font-sans">Open Private Suite</p>
-                                </div>
-                            </div>
-                        </motion.button>
+                            </motion.button>
 
-                        <motion.button
-                            whileHover={{ scale: 1.02, translateY: -5 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => handleCreateLobby(4)}
-                            className="relative h-64 bg-gradient-to-br from-purple-900/20 to-black border-gold rounded-2xl p-8 text-left group overflow-hidden shadow-plush"
-                        >
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
-                            <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:opacity-100 group-hover:text-purple-400 transition-all duration-500">🎲</div>
+                            <motion.button
+                                whileHover={{ scale: 1.02, translateY: -5 }} whileTap={{ scale: 0.98 }}
+                                onClick={() => handleCreateLobby(4)}
+                                className="relative h-56 bg-gradient-to-br from-purple-900/20 to-black border-gold rounded-2xl p-8 text-left group overflow-hidden shadow-plush"
+                            >
+                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
+                                <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:opacity-100 group-hover:text-purple-400 transition-all duration-500">🎲</div>
+                                <div className="relative z-10 flex flex-col h-full justify-between">
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-white group-hover:text-purple-300 transition-colors mb-2">Fortune's Chaos</h3>
+                                        <div className="h-0.5 w-12 bg-purple-600/50 group-hover:w-24 transition-all duration-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-400 text-sm font-sans mb-1">4 Players • Total Mayhem</p>
+                                        <p className="text-purple-500/60 text-xs uppercase tracking-widest font-sans">Host Chaos Table</p>
+                                    </div>
+                                </div>
+                            </motion.button>
+                        </div>
+                    </div>
 
-                            <div className="relative z-10 flex flex-col h-full justify-between">
-                                <div>
-                                    <h3 className="text-3xl font-bold text-white group-hover:text-purple-300 transition-colors mb-2">Fortune's Chaos</h3>
-                                    <div className="h-0.5 w-12 bg-purple-600/50 group-hover:w-24 transition-all duration-500" />
+                    {/* ── UNO ── */}
+                    <div>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="h-px flex-1 bg-red-500/10" />
+                            <span className="text-xs font-sans uppercase tracking-[0.3em] text-red-500/60 flex items-center gap-2">
+                                <span className="text-red-500">U</span><span className="text-blue-500">N</span><span className="text-green-500">O</span>
+                                <span className="text-gray-500">— Card Game</span>
+                            </span>
+                            <div className="h-px flex-1 bg-red-500/10" />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <motion.button
+                                whileHover={{ scale: 1.02, translateY: -5 }} whileTap={{ scale: 0.98 }}
+                                onClick={() => handleCreateUnoLobby(2)}
+                                className="relative h-56 bg-gradient-to-br from-red-950/60 to-black border border-red-700/30 hover:border-red-500/60 rounded-2xl p-8 text-left group overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
+                            >
+                                <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:opacity-100 transition-all duration-500">🃏</div>
+                                <div className="absolute inset-0 bg-gradient-to-br from-red-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                <div className="relative z-10 flex flex-col h-full justify-between">
+                                    <div>
+                                        <div className="flex gap-1 mb-3">
+                                            {['red', 'blue', 'green', 'yellow'].map(c => (
+                                                <div key={c} className={`w-2 h-6 rounded-sm ${c === 'red' ? 'bg-red-500' : c === 'blue' ? 'bg-blue-500' : c === 'green' ? 'bg-green-500' : 'bg-yellow-400'}`} />
+                                            ))}
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-white group-hover:text-red-400 transition-colors mb-2">UNO: Duel</h3>
+                                        <div className="h-0.5 w-12 bg-red-600/50 group-hover:w-24 transition-all duration-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-400 text-sm font-sans mb-1">2 Players • Standard Rules</p>
+                                        <p className="text-red-500/60 text-xs uppercase tracking-widest font-sans">Create UNO Table</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-gray-400 text-sm font-sans mb-1">4 Players • Total Mayhem</p>
-                                    <p className="text-purple-500/60 text-xs uppercase tracking-widest font-sans">Host Chaos Table</p>
+                            </motion.button>
+
+                            <motion.button
+                                whileHover={{ scale: 1.02, translateY: -5 }} whileTap={{ scale: 0.98 }}
+                                onClick={() => handleCreateUnoLobby(4)}
+                                className="relative h-56 bg-gradient-to-br from-blue-950/40 via-green-950/20 to-black border border-blue-700/20 hover:border-blue-500/60 rounded-2xl p-8 text-left group overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
+                            >
+                                <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:opacity-100 transition-all duration-500">🌈</div>
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-green-900/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                <div className="relative z-10 flex flex-col h-full justify-between">
+                                    <div>
+                                        <div className="flex gap-1 mb-3">
+                                            {['red', 'blue', 'green', 'yellow'].map(c => (
+                                                <div key={c} className={`w-2 h-6 rounded-sm ${c === 'red' ? 'bg-red-500' : c === 'blue' ? 'bg-blue-500' : c === 'green' ? 'bg-green-500' : 'bg-yellow-400'}`} />
+                                            ))}
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-white group-hover:text-blue-300 transition-colors mb-2">UNO: Mayhem</h3>
+                                        <div className="h-0.5 w-12 bg-blue-600/50 group-hover:w-24 transition-all duration-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-400 text-sm font-sans mb-1">4 Players • All Rules Active</p>
+                                        <p className="text-blue-500/60 text-xs uppercase tracking-widest font-sans">Host Chaos Table</p>
+                                    </div>
                                 </div>
-                            </div>
-                        </motion.button>
+                            </motion.button>
+                        </div>
                     </div>
 
                     {/* Join Section */}
                     <div className="bg-black/40 border-gold rounded-xl p-8 flex flex-col md:flex-row gap-8 items-center justify-between backdrop-blur-md">
                         <div>
                             <h3 className="text-2xl font-bold text-white mb-1">Have an Invitation?</h3>
-                            <p className="text-gray-400 text-sm font-sans">Enter the VIP access code to join a private suite.</p>
+                            <p className="text-gray-400 text-sm font-sans">Enter a VIP code for Fool's Fortune, or a UNO-XXXXX code for UNO.</p>
                         </div>
                         <div className="flex w-full md:w-auto gap-0 shadow-lg">
                             <input
                                 type="text"
                                 value={joinId}
-                                onChange={(e) => setJoinId(e.target.value)}
-                                placeholder="VIP-CODE"
-                                className="bg-white/5 border border-white/10 rounded-l-lg px-6 py-4 focus:outline-none focus:bg-white/10 w-full md:w-64 font-mono tracking-widest text-center uppercase placeholder-gray-600"
+                                onChange={(e) => setJoinId(e.target.value.toUpperCase())}
+                                placeholder="VIP-CODE or UNO-XXXXX"
+                                className="bg-white/5 border border-white/10 rounded-l-lg px-5 py-4 focus:outline-none focus:bg-white/10 w-full md:w-56 font-mono tracking-widest text-center uppercase placeholder-gray-600 text-sm"
                             />
                             <button
                                 onClick={handleJoinLobby}
@@ -195,7 +274,6 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     );

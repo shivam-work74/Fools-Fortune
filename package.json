@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "start": "node server/index.js",
-    "server": "node server/index.js",
+    "server": "powershell -Command \"netstat -ano | Select-String ':3001 ' | ForEach-Object { ($_ -split '\\s+')[-1] } | Where-Object { $_ -match '^\\d+$' } | Select-Object -Unique | ForEach-Object { taskkill /PID $_ /F 2>$null }; node server/index.js\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

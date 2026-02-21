@@ -20,12 +20,12 @@ function FadeIn({ children, delay = 0, className = "" }) {
 }
 
 const FEATURES = [
-    { icon: "⚔️", title: "1-on-1 Duels", desc: "Face off against a single opponent in a pure battle of wits. Draw, match, and outmaneuver your rival." },
-    { icon: "🎲", title: "Fortune's Chaos (4P)", desc: "Four players, one cursed Queen. Alliances form and shatter in this tornado of betrayal and luck." },
-    { icon: "📊", title: "Live Leaderboard", desc: "Track your wins, losses, and rivalries. Ascend the Inner Circle rankings in real-time." },
-    { icon: "🃏", title: "Real-Time Gameplay", desc: "Socket-powered live games synced across all players. Every move is instant, every card matters." },
-    { icon: "🔮", title: "Private Tables", desc: "Generate a VIP code and invite exactly who you want. Your rules, your table, your legend." },
-    { icon: "👑", title: "Rival Tracking", desc: "The game remembers who beat you. Build a nemesis list and settle scores in future matches." },
+    { icon: "♠️", title: "Fool's Fortune", desc: "Classic Old Maid — avoid the cursed Queen of Spades. One wrong draw and the table falls silent.", tag: "Old Maid", tagColor: "text-yellow-500" },
+    { icon: "🎴", title: "UNO", desc: "The iconic colour-matching card game. Skip, Reverse, Wild Draw Four — first to empty their hand wins.", tag: "UNO", tagColor: "text-red-400" },
+    { icon: "⚡", title: "Real-Time Multiplayer", desc: "Socket-powered live games synced across all players. Every move is instant, every card matters.", tag: "Both Games", tagColor: "text-blue-400" },
+    { icon: "🏆", title: "Live Leaderboard", desc: "Track your wins, losses, and rivalries. Ascend the Inner Circle rankings in real-time.", tag: "Both Games", tagColor: "text-blue-400" },
+    { icon: "🔮", title: "Private Tables", desc: "Generate a VIP code and invite exactly who you want. Your rules, your table, your legend.", tag: "Both Games", tagColor: "text-blue-400" },
+    { icon: "👑", title: "Rival Tracking", desc: "The game remembers who beat you. Build a nemesis list and settle scores in future matches.", tag: "Both Games", tagColor: "text-blue-400" },
 ];
 
 const HOW_TO = [
@@ -171,7 +171,8 @@ export default function LandingPage() {
                             <FadeIn key={i} delay={i * 0.1}>
                                 <div className="group h-full bg-black/40 border border-white/5 hover:border-yellow-500/30 rounded-2xl p-8 transition-all duration-500 hover:bg-black/60 hover:shadow-[0_0_30px_rgba(202,138,4,0.05)]">
                                     <div className="text-4xl mb-5">{f.icon}</div>
-                                    <h3 className="text-xl font-bold text-white mb-3 group-hover:text-gold transition-colors">{f.title}</h3>
+                                    <h3 className="text-xl font-bold text-white mb-1 group-hover:text-gold transition-colors">{f.title}</h3>
+                                    {f.tag && <span className={`text-[10px] font-sans font-bold uppercase tracking-widest ${f.tagColor} mb-3 block`}>{f.tag}</span>}
                                     <p className="text-gray-400 font-sans text-sm leading-relaxed">{f.desc}</p>
                                 </div>
                             </FadeIn>
