@@ -138,7 +138,7 @@ export function handleUnoEvents(io, socket) {
         });
 
         socket.join(lobbyId);
-        socket.emit('uno:lobbyCreated', { lobbyId, players: [player] });
+        socket.emit('uno:lobbyCreated', { lobbyId, players: [player], maxPlayers: maxPlayers || 4 });
         console.log(`UNO Lobby ${lobbyId} created by ${username}`);
     });
 
@@ -163,7 +163,7 @@ export function handleUnoEvents(io, socket) {
         const player = { id: socket.id, username, avatar: avatar || '🃏', isHost: false, peerId };
         lobby.players.push(player);
         socket.join(lobbyId);
-        io.to(lobbyId).emit('uno:playerJoined', { players: lobby.players });
+        io.to(lobbyId).emit('uno:playerJoined', { players: lobby.players, maxPlayers: lobby.maxPlayers });
         console.log(`[UNO] ${username} joined lobby ${lobbyId}`);
     });
 
@@ -183,6 +183,25 @@ export function handleUnoEvents(io, socket) {
         // Update host socket.id if drifted
         lobby.hostId = socket.id;
         if (hostPlayer) hostPlayer.id = socket.id;
+
+        // Auto-fill bots to reach maxPlayers or ensure a minimum of 2
+        const BOT_NAMES = ["Spectre-Bot", "Cipher-Bot", "Apex-Bot", "Nova-Bot"];
+        const numHumans = lobby.players.length;
+        const targetCount = lobby.maxPlayers || 4;
+
+        // We only add bots if humans are fewer than the lobby's target capacity
+        if (numHumans < targetCount) {
+            for (let i = numHumans; i < targetCount; i++) {
+                lobby.players.push({
+                    id: `bot-${nanoid()}`,
+                    username: BOT_NAMES[i % BOT_NAMES.length] || `Bot ${i}`,
+                    avatar: '🤖',
+                    isHost: false,
+                    isBot: true,
+                    peerId: null
+                });
+            }
+        }
 
         const deck = createUnoDeck();
         const numPlayers = lobby.players.length;
@@ -256,7 +275,10 @@ export function handleUnoEvents(io, socket) {
         // THEN broadcast the state so they receive it after mounting.
         io.to(lobbyId).emit('uno:gameStarted', { lobbyId });
         // Small delay to allow React navigation + listener registration before state arrives
-        setTimeout(() => broadcastState(io, lobby), 150);
+        setTimeout(() => {
+            broadcastState(io, lobby);
+            checkAndTriggerBotTurn(io, lobbyId);
+        }, 150);
         console.log(`UNO Game started in ${lobbyId}`);
     });
 
@@ -344,6 +366,7 @@ export function handleUnoEvents(io, socket) {
 
         const card = state.lastPlayedCard;
         applyCardEffect(io, lobby, card, state.pendingColorPlayerIdx, true);
+        checkAndTriggerBotTurn(io, lobbyId);
     });
 
     // ── Draw Card ──
@@ -377,6 +400,7 @@ export function handleUnoEvents(io, socket) {
             forced: isForced,
             nextTurn: state.turnIndex,
         });
+        checkAndTriggerBotTurn(io, lobbyId);
     });
 
     // ── Say UNO ──
@@ -450,6 +474,7 @@ export function handleUnoEvents(io, socket) {
 
         state.turnIndex = nextPlayerIndex(state, 0);
         broadcastState(io, lobby);
+        checkAndTriggerBotTurn(io, lobbyId);
     });
 
     // ── Kick from UNO Lobby ──
@@ -470,7 +495,15 @@ export function handleUnoEvents(io, socket) {
         if (!lobby || !lobby.gameState) return;
         const playerIdx = lobby.players.findIndex(p => p.id === socket.id);
         if (playerIdx === -1) return;
-        socket.emit('uno:gameStateUpdate', buildPrivateState(lobby.gameState, playerIdx));
+        socket.emit('uno:gameStateUpdate', { ...buildPrivateState(lobby.gameState, playerIdx), maxPlayers: lobby.maxPlayers });
+    });
+
+    // ── Send Emote ──
+    socket.on('uno:sendEmote', ({ lobbyId, emote }) => {
+        io.to(lobbyId).emit('uno:emoteReceived', {
+            senderId: socket.id,
+            emote
+        });
     });
 
     socket.on('disconnect', () => {
@@ -568,4 +601,104 @@ function applyCardEffect(io, lobby, card, playerIdx, colorAlreadyResolved = fals
         nextTurnIndex: state.turnIndex,
         drawAccumulator: state.drawAccumulator,
     });
+
+    if (!state.pendingColor) {
+        checkAndTriggerBotTurn(io, lobbyId);
+    }
+}
+
+// ─── Bot AI Logic ─────────────────────────────────────────────────────────────
+
+function checkAndTriggerBotTurn(io, lobbyId) {
+    const lobby = unoLobbies.get(lobbyId);
+    if (!lobby || lobby.status !== 'playing' || !lobby.gameState) return;
+    const state = lobby.gameState;
+    const currentPlayer = state.players[state.turnIndex];
+
+    if (currentPlayer && currentPlayer.isBot) {
+        setTimeout(() => {
+            playBotTurn(io, lobbyId);
+        }, 2000); // 2 second delay for drama
+    }
+}
+
+function playBotTurn(io, lobbyId) {
+    const lobby = unoLobbies.get(lobbyId);
+    if (!lobby || lobby.status !== 'playing' || !lobby.gameState || lobby.gameState.gameOver) return;
+
+    const state = lobby.gameState;
+    const botIdx = state.turnIndex;
+    const bot = state.players[botIdx];
+
+    // Check if bot needs to say UNO (1 card left after playing)
+    if (bot.hand.length === 2) {
+        bot.saidUno = true;
+        io.to(lobbyId).emit('uno:unoCalled', { username: bot.username });
+    }
+
+    // Find playable cards
+    const topCard = state.discardPile[state.discardPile.length - 1];
+    const currentColor = state.currentColor;
+
+    // AI strategy: play actions first, then matching colors, then wilds
+    const playableCards = bot.hand
+        .map((card, index) => ({ card, index }))
+        .filter(item => canPlayCard(item.card, topCard, currentColor));
+
+    if (playableCards.length > 0) {
+        // Simple heuristic: Action cards > Numbers > Wilds (wilds are saved for emergencies)
+        playableCards.sort((a, b) => {
+            const score = (c) => {
+                if (c.type === 'wild4') return 10;
+                if (c.type === 'wild') return 5;
+                if (c.type !== 'number') return 100; // Prefer actions
+                return 50;
+            };
+            return score(b.card) - score(a.card);
+        });
+
+        const chosen = playableCards[0];
+        let chosenColor = null;
+
+        if (chosen.card.type === 'wild' || chosen.card.type === 'wild4') {
+            // Pick color bot has most of
+            const counts = { red: 0, blue: 0, green: 0, yellow: 0 };
+            bot.hand.forEach(c => { if (c.color !== 'wild') counts[c.color]++; });
+            chosenColor = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+        }
+
+        // Execute play
+        bot.hand.splice(chosen.index, 1);
+        if (bot.hand.length === 1 && !bot.saidUno) {
+            bot.pendingUnoPenalty = true;
+        }
+
+        state.discardPile.push(chosen.card);
+        state.lastPlayedCard = chosen.card;
+        state.currentColor = (chosen.card.type === 'wild' || chosen.card.type === 'wild4') ? chosenColor : chosen.card.color;
+
+        // Apply session stats
+        bot.sessionStats.cardsPlayed += 1;
+
+        applyCardEffect(io, lobby, chosen.card, botIdx, true);
+    } else {
+        // Forced to draw
+        const drawCount = state.drawAccumulator > 0 ? state.drawAccumulator : 1;
+        state.drawAccumulator = 0;
+        const drawn = drawCards(state, drawCount);
+        bot.hand.push(...drawn);
+        bot.saidUno = false;
+
+        const isForced = drawCount > 1;
+        state.turnIndex = nextPlayerIndex(state, 0);
+
+        broadcastState(io, lobby);
+        io.to(lobbyId).emit('uno:cardDrawn', {
+            playerIdx: botIdx,
+            drawCount,
+            forced: isForced,
+            nextTurn: state.turnIndex,
+        });
+        checkAndTriggerBotTurn(io, lobbyId);
+    }
 }

@@ -10,6 +10,7 @@ import PlayerAvatar from "./PlayerAvatar";
 import WinnerModal from "./WinnerModal";
 import HowToPlay from "./HowToPlay";
 import { motion, AnimatePresence } from "framer-motion";
+import { EmoteSelector, EmoteOverlay } from "./uno/EmoteSystem";
 
 // --- Sub-components ---
 
@@ -21,7 +22,7 @@ function GameLog({ log }) {
 
   return (
     <div className="absolute top-20 left-1/2 transform -translate-x-1/2 w-96 max-h-32 overflow-y-auto pointer-events-none text-center z-10 opacity-90 transition-opacity">
-      <div className="bg-black/40 backdrop-blur-md p-3 rounded-xl text-white text-sm shadow-xl space-y-1 border border-white/10">
+      <div className="bg-[var(--bg-glass)] backdrop-blur-md p-3 rounded-xl text-[var(--text-primary)] text-sm shadow-xl space-y-1 border border-[var(--border-glass)]">
         {log.slice(-3).map((msg, i) => (
           <div key={i} className="animate-fade-in text-shadow-sm font-medium">{msg}</div>
         ))}
@@ -33,21 +34,20 @@ function GameLog({ log }) {
 
 function WinnerPopup({ name, onBack }) {
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center z-[100] animate-fade-in perspective-1000">
-      <div className="bg-gradient-to-br from-gray-900 to-black rounded-3xl p-12 w-[500px] text-center shadow-[0_0_100px_rgba(202,138,4,0.3)] border border-yellow-600/50 relative transform rotate-x-12 hover:rotate-x-0 transition-transform duration-500 group">
-        <div className="absolute inset-0 rounded-3xl opacity-20 bg-[url('https://www.transparenttextures.com/patterns/felt.png')]" />
-        <div className="absolute inset-0 rounded-3xl border border-yellow-500/20 pointer-events-none" />
+    <div className="fixed inset-0 bg-[var(--bg-glass)] backdrop-blur-xl flex items-center justify-center z-[100] animate-fade-in perspective-1000">
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-[40px] p-12 w-[500px] text-center shadow-[var(--shadow-premium)] relative transform rotate-x-12 hover:rotate-x-0 transition-transform duration-500 group overflow-hidden">
+        <div className="absolute inset-0 rounded-3xl opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/felt.png')]" />
 
         <div className="relative z-10">
-          <div className="text-8xl mb-8 drop-shadow-[0_0_30px_rgba(255,215,0,0.6)] animate-bounce">🏆</div>
-          <h2 className="text-5xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-700 tracking-tight font-serif uppercase">VICTORY</h2>
-          <p className="text-yellow-100/60 mb-10 font-serif text-xl italic">
+          <div className="text-8xl mb-8 drop-shadow-[0_0_30px_rgba(255,215,0,0.4)] animate-bounce">🏆</div>
+          <h2 className="text-5xl font-black mb-4 text-gold tracking-tighter uppercase">VICTORY</h2>
+          <p className="text-[var(--text-secondary)] mb-10 font-[serif] text-xl italic leading-relaxed">
             "Fortune favors the bold."<br />
-            <span className="font-bold text-white not-italic uppercase tracking-[0.2em] border-b border-yellow-600/50 pb-1 mt-2 inline-block">{name}</span> survives.
+            <span className="font-bold text-[var(--text-primary)] not-italic uppercase tracking-[0.2em] border-b border-yellow-600/50 pb-1 mt-2 inline-block">{name}</span> survives.
           </p>
           <button
             onClick={onBack}
-            className="w-full bg-gradient-to-r from-yellow-700 to-yellow-600 text-black px-8 py-5 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] hover:shadow-[0_0_30px_rgba(202,138,4,0.4)] hover:-translate-y-1 transition-all font-bold text-xl tracking-[0.3em] uppercase border border-white/20"
+            className="w-full bg-[var(--accent)] text-white px-8 py-5 rounded-2xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all font-black text-xl tracking-[0.2em] uppercase border border-white/10"
           >
             Claim Winnings
           </button>
@@ -93,9 +93,15 @@ function MovingCardAnimation({ movingCard }) {
 // --- Spectator Badge ---
 function SpectatorBadge() {
   return (
-    <div className="fixed top-24 right-6 bg-black/50 backdrop-blur-md border border-yellow-500/30 px-4 py-2 rounded-full flex items-center gap-2 shadow-2xl z-50 animate-pulse">
-      <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_red]" />
-      <span className="text-xs font-bold uppercase tracking-widest text-yellow-500/80">Live Feed</span>
+    <div className="fixed top-24 right-8 bg-black/40 backdrop-blur-xl border border-red-500/30 px-5 py-2.5 rounded-2xl flex items-center gap-3 shadow-[0_0_20px_rgba(239,68,68,0.2)] z-50 group">
+      <div className="relative">
+        <div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_10px_red] animate-pulse" />
+        <div className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-40" />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-red-500 leading-none">Live Feed</span>
+        <span className="text-[8px] font-bold uppercase tracking-widest text-white/30 mt-1">Satellite Uplink Active</span>
+      </div>
     </div>
   );
 }
@@ -128,6 +134,16 @@ export default function GameBoard() {
   const [signals, setSignals] = useState([]); // { id, from, type, x, y }
 
   const timerRef = useRef(null);
+
+  const handleJoin = () => {
+    if (!lobbyId || !socket) return;
+    socket.emit("joinLobby", { lobbyId, username: user.username, avatar: "🛸" });
+  };
+
+  const handleSendEmote = (emote) => {
+    if (!socket || !lobbyId) return;
+    socket.emit('sendEmote', { lobbyId, emote });
+  };
 
   // --- Socket Listeners ---
   useEffect(() => {
@@ -208,6 +224,33 @@ export default function GameBoard() {
   // --- Animation Helper ---
   async function animateDraw(fromName, toName) {
     if (!gameState) return;
+
+    // Find a card from the 'from' player to animate
+    const fromPlayer = gameState.players.find(p => p.username === fromName);
+    if (!fromPlayer) return;
+
+    // We'll target the last card in the 'from' player's hand for the visual
+    // or just any card that exists in the DOM
+    const fromSelector = fromName === user.username ? `[id^='card-']` : `[id^='target-card-']`;
+    const fromElements = document.querySelectorAll(fromSelector);
+    const fromEl = fromElements[fromElements.length - 1];
+    const toEl = document.getElementById(`player-avatar-${toName}`);
+
+    if (fromEl && toEl) {
+      const fromRect = fromEl.getBoundingClientRect();
+      const toRect = toEl.getBoundingClientRect();
+
+      setMovingCard({
+        fromRect,
+        toRect,
+        id: Date.now()
+      });
+
+      // Clear the animation after it finishes
+      setTimeout(() => {
+        setMovingCard(null);
+      }, 1000);
+    }
   }
 
   // --- Interaction ---
@@ -239,7 +282,7 @@ export default function GameBoard() {
 
   // --- Render Helpers ---
 
-  if (!gameState) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading Mission Data...</div>;
+  if (!gameState) return <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex items-center justify-center">Loading Mission Data...</div>;
 
   // If Spectating, myIndex might be -1.
   const myIndex = gameState.isSpectating ? 0 : gameState.players.findIndex(p => p.username === user.username);
@@ -274,9 +317,12 @@ export default function GameBoard() {
   ];
 
   return (
-    <div className="relative w-full h-screen bg-[#050505] overflow-hidden select-none font-sans text-gray-100 flex items-center justify-center perspective-1000">
+    <div className="relative w-full h-screen bg-[var(--bg-primary)] overflow-hidden select-none font-sans text-[var(--text-primary)] flex items-center justify-center perspective-1000 transition-colors duration-500">
 
       {gameState.isSpectating && <SpectatorBadge />}
+
+      {/* Emote floating layer — fixed, renders above everything */}
+      <EmoteOverlay socket={socket} eventName="emoteReceived" />
 
       {/* 3D Table Surface - VIP Velvet Edition */}
       <div className="absolute w-[120%] h-[120%] bg-[#1a0520] transform rotate-x-20 origin-bottom shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] border-[25px] border-[#2a1a0a] rounded-[50%] top-[-10%] flex items-center justify-center overflow-hidden ring-1 ring-yellow-900/50">
@@ -290,7 +336,7 @@ export default function GameBoard() {
       {/* Top Bar - VIP Style */}
       <div className="absolute top-0 w-full p-6 flex justify-between items-center z-50 pointer-events-none">
         <div className="flex items-center gap-3 pointer-events-auto">
-          <button onClick={() => navigate('/dashboard')} className="px-5 py-2 bg-black/60 hover:bg-red-950/50 rounded-lg text-gray-400 hover:text-red-400 border border-white/5 hover:border-red-500/30 backdrop-blur-md transition-all flex items-center gap-2 group">
+          <button onClick={() => navigate('/dashboard')} className="px-5 py-2 bg-[var(--bg-glass)] hover:bg-red-950/20 rounded-lg text-[var(--text-muted)] hover:text-red-500 border border-[var(--border-glass)] hover:border-red-500/30 backdrop-blur-md transition-all flex items-center gap-2 group shadow-sm">
             <span className="group-hover:-translate-x-1 transition-transform">←</span> <span className="text-xs uppercase font-serif font-bold tracking-[0.2em]">Fold & Leave</span>
           </button>
         </div>
@@ -299,7 +345,7 @@ export default function GameBoard() {
           <div className="text-[10px] md:text-xs uppercase tracking-[0.4em] text-yellow-600/80 mb-2 font-serif font-bold">
             {gameState.players[gameState.turnIndex]?.username === user.username ? "It is your turn" : `${gameState.players[gameState.turnIndex]?.username}'s Turn`}
           </div>
-          <div className="w-32 h-0.5 bg-white/5 rounded-full overflow-hidden">
+          <div className="w-32 h-0.5 bg-[var(--border-primary)] rounded-full overflow-hidden">
             <motion.div
               className={`h-full ${gameState.players[gameState.turnIndex]?.username === user.username ? "bg-yellow-500 box-shadow-[0_0_10px_rgba(234,179,8,0.5)]" : "bg-gray-600"}`}
               initial={{ width: "100%" }}
@@ -310,7 +356,7 @@ export default function GameBoard() {
         </div>
 
         <div className="flex gap-3 pointer-events-auto">
-          <button onClick={() => setHowOpen(true)} className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-yellow-600/20 border border-white/10 hover:border-yellow-600/50 rounded-full text-yellow-600/80 transition-all font-serif italic font-bold">?</button>
+          <button onClick={() => setHowOpen(true)} className="w-10 h-10 flex items-center justify-center bg-[var(--bg-glass)] hover:bg-yellow-600/20 border border-[var(--border-glass)] hover:border-yellow-600/50 rounded-full text-yellow-600/80 transition-all font-serif italic font-bold shadow-sm">?</button>
         </div>
       </div>
 
@@ -339,6 +385,8 @@ export default function GameBoard() {
             {isMuted ? 'Unmute' : 'Mute'}
           </span>
         </button>
+
+        <EmoteSelector onSelect={handleSendEmote} />
 
         {/* Speaker Control */}
         <button
@@ -374,14 +422,14 @@ export default function GameBoard() {
                 className="absolute pointer-events-auto"
                 style={style}
               >
-                {/* Signal Bubble */}
+                {/* Signal Bubble — renders BELOW avatar for top-row opponents, ABOVE for bottom player */}
                 <AnimatePresence>
                   {activeSignal && (
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.5, y: 20 }}
-                      animate={{ opacity: 1, scale: 1, y: -50 }}
-                      exit={{ opacity: 0, scale: 0.5, y: -80 }}
-                      className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white text-black text-3xl px-4 py-2 rounded-full shadow-2xl z-50 border-2 border-yellow-500"
+                      initial={{ opacity: 0, scale: 0.5, y: 0 }}
+                      animate={{ opacity: 1, scale: 1, y: visualIdx === 0 ? -70 : 50 }}
+                      exit={{ opacity: 0, scale: 0.5, y: visualIdx === 0 ? -90 : 70 }}
+                      className={`absolute ${visualIdx === 0 ? '-top-14' : 'top-full mt-2'} left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md text-4xl px-4 py-2 rounded-2xl shadow-2xl z-50 border border-white/20 whitespace-nowrap`}
                     >
                       {EMOTES.find(e => e.type === activeSignal.type)?.label}
                     </motion.div>

@@ -35,12 +35,12 @@ const COLOR_MAP = {
         inner: "bg-yellow-200/30",
     },
     wild: {
-        bg: "bg-[#111] border-white/20",
-        border: "border-white/20",
-        accent: "bg-white/10",
-        text: "text-white",
-        glow: "shadow-[0_0_25px_rgba(255,255,255,0.3)]",
-        inner: "bg-white/5",
+        bg: "bg-[var(--bg-elevated)] border-[var(--border-primary)]",
+        border: "border-[var(--border-primary)]",
+        accent: "bg-[var(--text-primary)]/5",
+        text: "text-[var(--text-primary)]",
+        glow: "shadow-[var(--shadow-premium)]",
+        inner: "bg-[var(--text-primary)]/5",
     },
 };
 
@@ -93,18 +93,18 @@ export default function UnoCard({ card, faceDown = false, playable = false, onCl
                 whileHover={playable ? { y: -8, scale: 1.05, rotateY: 5 } : {}}
                 onClick={onClick}
                 className={`
-                    relative rounded-2xl border-2 border-white/10 cursor-pointer select-none overflow-hidden
-                    ${small ? "w-10 h-14 border" : "w-20 h-28 sm:w-24 sm:h-32 shadow-[0_10px_30px_rgba(0,0,0,0.6)]"}
-                    bg-[#0a0a0a] transition-all duration-300
+                    relative rounded-2xl border-2 border-[var(--border-primary)] cursor-pointer select-none overflow-hidden
+                    ${small ? "w-10 h-14 border" : "w-20 h-28 sm:w-24 sm:h-32 shadow-[var(--shadow-premium)]"}
+                    bg-[var(--bg-secondary)] transition-all duration-300
                 `}
             >
                 {/* Back Design */}
                 <div className="absolute inset-0 opacity-20">
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
                 </div>
-                <div className="absolute inset-2 border border-white/5 rounded-xl flex items-center justify-center">
-                    <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 via-amber-500/10 to-blue-600/10" />
-                    <span className="text-white/20 font-black text-xl tracking-tighter italic">UNO</span>
+                <div className="absolute inset-2 border border-[var(--border-glass)] rounded-xl flex items-center justify-center">
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-600/5 via-amber-500/5 to-blue-600/5" />
+                    <span className="text-[var(--text-muted)] opacity-20 font-black text-xl tracking-tighter italic">UNO</span>
                 </div>
                 {/* Physical edge highlight */}
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-white/20" />

@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
 import { VoiceProvider } from "./context/VoiceContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import LandingPage from "./components/LandingPage";
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
@@ -12,6 +13,7 @@ import Lobby from "./components/Lobby";
 import GameBoard from "./components/GameBoard";
 import UnoLobby from "./components/uno/UnoLobby";
 import UnoGameBoard from "./components/uno/UnoGameBoard";
+import ThemeToggle from "./components/ThemeToggle";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -21,40 +23,43 @@ function PrivateRoute({ children }) {
 
 export default function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <SocketProvider>
-          <VoiceProvider>
-            <Routes>
-              <Route path="/" element={<LandingPageWrapper />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+    <ThemeProvider>
+      <Router>
+        <AuthProvider>
+          <SocketProvider>
+            <VoiceProvider>
+              <Routes>
+                <Route path="/" element={<LandingPageWrapper />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
-              <Route path="/dashboard" element={
-                <PrivateRoute><Dashboard /></PrivateRoute>
-              } />
+                <Route path="/dashboard" element={
+                  <PrivateRoute><Dashboard /></PrivateRoute>
+                } />
 
-              {/* Old Maid / Fool's Fortune */}
-              <Route path="/lobby" element={
-                <PrivateRoute><Lobby /></PrivateRoute>
-              } />
-              <Route path="/game/:lobbyId" element={
-                <PrivateRoute><GameBoard /></PrivateRoute>
-              } />
+                {/* Old Maid / Fool's Fortune */}
+                <Route path="/lobby" element={
+                  <PrivateRoute><Lobby /></PrivateRoute>
+                } />
+                <Route path="/game/:lobbyId" element={
+                  <PrivateRoute><GameBoard /></PrivateRoute>
+                } />
 
-              {/* UNO */}
-              <Route path="/uno-lobby" element={
-                <PrivateRoute><UnoLobby /></PrivateRoute>
-              } />
-              <Route path="/uno/:lobbyId" element={
-                <PrivateRoute><UnoGameBoard /></PrivateRoute>
-              } />
+                {/* UNO */}
+                <Route path="/uno-lobby" element={
+                  <PrivateRoute><UnoLobby /></PrivateRoute>
+                } />
+                <Route path="/uno/:lobbyId" element={
+                  <PrivateRoute><UnoGameBoard /></PrivateRoute>
+                } />
 
-            </Routes>
-          </VoiceProvider>
-        </SocketProvider>
-      </AuthProvider>
-    </Router>
+              </Routes>
+            </VoiceProvider>
+          </SocketProvider>
+        </AuthProvider>
+        <ThemeToggle />
+      </Router>
+    </ThemeProvider>
   );
 }
 

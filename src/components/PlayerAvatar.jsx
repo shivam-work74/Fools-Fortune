@@ -13,11 +13,11 @@ export default function PlayerAvatar({ name, isBot, cardCount, isActive, isTarge
     const muted = isMe && isMuted;
 
     return (
-        <div className={`flex flex-col items-center gap-3 transition-all duration-500 ease-out ${isActive ? "scale-110 z-20" : "scale-100 z-10"} ${finished ? "opacity-60 grayscale" : ""}`}>
+        <div id={`player-avatar-${name}`} className={`flex flex-col items-center gap-3 transition-all duration-500 ease-out ${isActive ? "scale-110 z-20" : "scale-100 z-10"} ${finished ? "opacity-60 grayscale" : ""}`}>
 
             {/* Avatar Circle (Glass/Coaster Style) */}
-            <div className={`relative w-20 h-20 rounded-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-black shadow-2xl overflow-visible group
-        ${isActive ? "ring-4 ring-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.6)]" : "ring-4 ring-gray-700"}
+            <div className={`relative w-20 h-20 rounded-full flex items-center justify-center bg-[var(--bg-elevated)] shadow-2xl overflow-visible group
+        ${isActive ? "ring-4 ring-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.6)]" : "ring-4 ring-[var(--border-primary)]"}
         ${isTarget ? "ring-4 ring-red-500 shadow-[0_0_40px_rgba(239,68,68,0.7)] animate-pulse" : ""}
       `}>
                 {/* Inner Glow/Highlight */}
@@ -30,9 +30,13 @@ export default function PlayerAvatar({ name, isBot, cardCount, isActive, isTarge
 
                 {/* Finished Badge */}
                 {finished && (
-                    <div className="absolute -top-2 -right-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg border border-green-400 z-20">
+                    <motion.div
+                        initial={{ scale: 0, rotate: -20 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        className="absolute -top-3 -right-3 bg-gradient-to-br from-emerald-400 to-green-600 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-[0_0_15px_rgba(52,211,153,0.4)] border border-white/20 z-20 uppercase tracking-tighter"
+                    >
                         SAFE
-                    </div>
+                    </motion.div>
                 )}
 
                 {/* Active Turn Spinner */}
@@ -55,8 +59,8 @@ export default function PlayerAvatar({ name, isBot, cardCount, isActive, isTarge
 
                 {/* Mic Status Icon */}
                 {hasVoice && (
-                    <div className={`absolute -bottom-1 -left-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-lg border ${muted ? 'bg-red-500 border-red-400 text-white' : 'bg-green-500 border-green-400 text-white'}`}>
-                        {muted ? '❌' : '🎙️'}
+                    <div className={`absolute -bottom-1 -left-1 w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-xl border-2 ${muted ? 'bg-red-500/90 border-red-400/50 text-white' : 'bg-green-500/90 border-green-400/50 text-white'} backdrop-blur-sm transition-colors duration-300`}>
+                        {muted ? '✕' : '🎙️'}
                     </div>
                 )}
             </div>
@@ -66,34 +70,33 @@ export default function PlayerAvatar({ name, isBot, cardCount, isActive, isTarge
                 <div className={`
                     font-bold text-sm px-4 py-1 rounded-full backdrop-blur-md border shadow-lg transition-colors duration-300
                     ${isActive
-                        ? "bg-yellow-500/90 text-yellow-950 border-yellow-400"
-                        : "bg-black/60 text-gray-200 border-white/10"}
+                        ? "bg-yellow-500 text-yellow-950 border-yellow-400 shadow-yellow-500/20"
+                        : "bg-[var(--bg-glass)] text-[var(--text-primary)] border-[var(--border-glass)]"}
                 `}>
                     {name}
                 </div>
 
                 {!finished && (
-                    <div className="text-xs font-semibold text-indigo-300 mt-1 drop-shadow-sm tracking-wide bg-black/40 px-2 py-0.5 rounded-md inline-block">
+                    <div className="text-xs font-semibold text-indigo-500 mt-1 drop-shadow-sm tracking-wide bg-[var(--bg-glass)] px-2 py-0.5 rounded-md inline-block border border-[var(--border-glass)] shadow-sm">
                         {cardCount} Cards
                     </div>
                 )}
             </div>
-
             {/* Mini Discard/Pair Stack (Premium Tiny Cards) */}
             {discards && discards.length > 0 && (
                 <div className="flex -space-x-3 mt-1 perspective-500">
                     {discards.slice(-3).map((c, i) => (
                         <div key={i}
-                            className="w-6 h-9 bg-white border border-gray-300 rounded shadow-md flex items-center justify-center text-[10px] select-none transform rotate-y-12 hover:rotate-y-0 transition-transform origin-left"
+                            className="w-6 h-9 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded shadow-sm flex items-center justify-center text-[10px] select-none transform rotate-y-12 hover:rotate-y-0 transition-transform origin-left"
                             style={{ zIndex: i }}
                         >
-                            <span className={c.suit === "♥" || c.suit === "♦" ? "text-red-600" : "text-gray-900"}>
+                            <span className={c.suit === "♥" || c.suit === "♦" ? "text-red-600" : "text-[var(--text-primary)]"}>
                                 {c.rank}
                             </span>
                         </div>
                     ))}
                     {discards.length > 3 && (
-                        <div className="w-6 h-9 bg-gray-800 border border-gray-700 rounded shadow-md flex items-center justify-center text-[8px] text-white select-none z-10">
+                        <div className="w-6 h-9 bg-[var(--bg-elevated)] border border-[var(--border-primary)] rounded shadow-sm flex items-center justify-center text-[8px] text-[var(--text-primary)] select-none z-10">
                             +{discards.length - 3}
                         </div>
                     )}

@@ -45,10 +45,10 @@ export default function LandingPage() {
     const heroRef = useRef(null);
 
     return (
-        <div className="w-full bg-plush text-amber-50 font-serif overflow-x-hidden">
+        <div className="w-full bg-plush text-[var(--text-primary)] font-serif overflow-x-hidden transition-colors duration-500">
 
             {/* ===== NAV BAR ===== */}
-            <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4 bg-black/60 backdrop-blur-lg border-b border-yellow-500/10">
+            <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4 bg-[var(--bg-glass)] backdrop-blur-lg border-b border-[var(--border-primary)]">
                 <span className="text-xl font-black tracking-tighter text-gold">FOOL'S FORTUNE</span>
                 <div className="flex items-center gap-4">
                     <Link
@@ -102,18 +102,18 @@ export default function LandingPage() {
 
                 {/* Hero Content */}
                 <div className="z-10 text-center space-y-8 px-6 max-w-4xl relative">
-                    <div className="absolute -inset-10 bg-black/40 blur-3xl -z-10 rounded-full" />
+                    <div className="absolute -inset-10 bg-[var(--bg-glass)] blur-3xl -z-10 rounded-full" />
 
                     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.2 }}>
-                        <div className="inline-block mb-6 px-4 py-1.5 border border-yellow-500/30 rounded-full bg-black/40 backdrop-blur-sm">
-                            <span className="text-xs font-sans tracking-[0.3em] text-yellow-500/80 uppercase">The Inner Circle Awaits</span>
+                        <div className="inline-block mb-6 px-4 py-1.5 border border-yellow-500/30 rounded-full bg-[var(--bg-glass)] backdrop-blur-sm">
+                            <span className="text-xs font-sans tracking-[0.3em] text-yellow-600 uppercase">The Inner Circle Awaits</span>
                         </div>
 
-                        <h1 className="text-7xl md:text-9xl font-black tracking-tighter text-gold drop-shadow-[0_5px_15px_rgba(0,0,0,0.8)] leading-none">
+                        <h1 className="text-7xl md:text-9xl font-black tracking-tighter text-gold drop-shadow-lg leading-none">
                             FOOL'S<br />FORTUNE
                         </h1>
 
-                        <p className="mt-6 text-xl md:text-2xl text-amber-100/60 font-light tracking-wide max-w-2xl mx-auto italic">
+                        <p className="mt-6 text-xl md:text-2xl text-[var(--text-secondary)] font-light tracking-wide max-w-2xl mx-auto italic">
                             "Only the bold dare to sit at this table. Will you walk away with everything, or be left holding the Queen?"
                         </p>
                     </motion.div>
@@ -159,8 +159,8 @@ export default function LandingPage() {
                 <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-purple-900/5 to-black/0 pointer-events-none" />
                 <div className="max-w-6xl mx-auto">
                     <FadeIn className="text-center mb-20">
-                        <p className="text-xs font-sans tracking-[0.4em] text-yellow-500/60 uppercase mb-4">The Arsenal</p>
-                        <h2 className="text-5xl md:text-6xl font-black tracking-tighter text-white">
+                        <p className="text-xs font-sans tracking-[0.4em] text-yellow-600 uppercase mb-4">The Arsenal</p>
+                        <h2 className="text-5xl md:text-6xl font-black tracking-tighter text-[var(--text-primary)]">
                             Everything You Need to<br />
                             <span className="text-gold">Dominate</span>
                         </h2>
@@ -169,11 +169,11 @@ export default function LandingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {FEATURES.map((f, i) => (
                             <FadeIn key={i} delay={i * 0.1}>
-                                <div className="group h-full bg-black/40 border border-white/5 hover:border-yellow-500/30 rounded-2xl p-8 transition-all duration-500 hover:bg-black/60 hover:shadow-[0_0_30px_rgba(202,138,4,0.05)]">
+                                <div className="group h-full bg-[var(--bg-glass)] border border-[var(--border-primary)] hover:border-yellow-500/30 rounded-2xl p-8 transition-all duration-500 hover:bg-[var(--bg-elevated)] hover:shadow-xl">
                                     <div className="text-4xl mb-5">{f.icon}</div>
-                                    <h3 className="text-xl font-bold text-white mb-1 group-hover:text-gold transition-colors">{f.title}</h3>
+                                    <h3 className="text-xl font-bold text-[var(--text-primary)] mb-1 group-hover:text-gold transition-colors">{f.title}</h3>
                                     {f.tag && <span className={`text-[10px] font-sans font-bold uppercase tracking-widest ${f.tagColor} mb-3 block`}>{f.tag}</span>}
-                                    <p className="text-gray-400 font-sans text-sm leading-relaxed">{f.desc}</p>
+                                    <p className="text-[var(--text-secondary)] font-sans text-sm leading-relaxed">{f.desc}</p>
                                 </div>
                             </FadeIn>
                         ))}
@@ -194,11 +194,11 @@ export default function LandingPage() {
                             <FadeIn key={i} delay={i * 0.15}>
                                 <div className="flex gap-6 items-start group">
                                     <div className="flex-shrink-0 w-16 h-16 rounded-full border border-yellow-500/20 bg-yellow-900/10 flex items-center justify-center group-hover:border-yellow-500/60 transition-colors">
-                                        <span className="font-mono text-yellow-500 font-bold text-lg">{step.step}</span>
+                                        <span className="font-mono text-yellow-600 font-bold text-lg">{step.step}</span>
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold text-white mb-2 group-hover:text-gold transition-colors">{step.title}</h3>
-                                        <p className="text-gray-400 font-sans text-sm leading-relaxed">{step.desc}</p>
+                                        <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2 group-hover:text-gold transition-colors">{step.title}</h3>
+                                        <p className="text-[var(--text-secondary)] font-sans text-sm leading-relaxed">{step.desc}</p>
                                     </div>
                                 </div>
                             </FadeIn>
@@ -219,11 +219,11 @@ export default function LandingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {TESTIMONIALS.map((t, i) => (
                             <FadeIn key={i} delay={i * 0.15}>
-                                <div className="bg-black/50 border border-white/5 rounded-2xl p-8 hover:border-yellow-500/20 transition-all">
-                                    <p className="text-amber-100/70 italic text-sm leading-relaxed mb-6 font-sans">{t.quote}</p>
-                                    <div className="flex items-center justify-between border-t border-white/5 pt-4">
-                                        <span className="text-white font-bold text-sm">{t.name}</span>
-                                        <span className="text-yellow-500/60 font-mono text-xs font-sans">{t.wins}</span>
+                                <div className="bg-[var(--bg-glass)] border border-[var(--border-primary)] rounded-2xl p-8 hover:border-yellow-500/20 transition-all shadow-sm">
+                                    <p className="text-[var(--text-secondary)] italic text-sm leading-relaxed mb-6 font-sans">{t.quote}</p>
+                                    <div className="flex items-center justify-between border-t border-[var(--border-primary)] pt-4">
+                                        <span className="text-[var(--text-primary)] font-bold text-sm">{t.name}</span>
+                                        <span className="text-yellow-600 font-mono text-xs font-sans">{t.wins}</span>
                                     </div>
                                 </div>
                             </FadeIn>
@@ -238,13 +238,13 @@ export default function LandingPage() {
                 <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "radial-gradient(circle, #fbbf24 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
 
                 <FadeIn className="max-w-3xl mx-auto text-center relative z-10">
-                    <div className="inline-block mb-6 px-5 py-2 border border-yellow-500/30 rounded-full bg-black/40 backdrop-blur-sm">
-                        <span className="text-xs font-sans tracking-[0.4em] text-yellow-500/80 uppercase">Last Chance</span>
+                    <div className="inline-block mb-6 px-5 py-2 border border-yellow-500/30 rounded-full bg-[var(--bg-glass)] backdrop-blur-sm">
+                        <span className="text-xs font-sans tracking-[0.4em] text-yellow-600 uppercase">Last Chance</span>
                     </div>
-                    <h2 className="text-6xl md:text-7xl font-black tracking-tighter text-white mb-6">
+                    <h2 className="text-6xl md:text-7xl font-black tracking-tighter text-[var(--text-primary)] mb-6">
                         The Table<br /><span className="text-gold">Is Set.</span>
                     </h2>
-                    <p className="text-xl text-amber-100/50 font-light italic mb-12 font-sans">
+                    <p className="text-xl text-[var(--text-secondary)] font-light italic mb-12 font-sans">
                         Fortune favors the bold, and punishes the foolish. Which will you be?
                     </p>
 
@@ -267,10 +267,10 @@ export default function LandingPage() {
             </section>
 
             {/* ===== FOOTER ===== */}
-            <footer className="border-t border-white/5 py-10 px-8">
+            <footer className="border-t border-[var(--border-primary)] py-10 px-8">
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
                     <span className="text-xl font-black tracking-tighter text-gold">FOOL'S FORTUNE</span>
-                    <div className="flex items-center gap-8 text-[11px] font-sans tracking-[0.2em] uppercase text-amber-500/30">
+                    <div className="flex items-center gap-8 text-[11px] font-sans tracking-[0.2em] uppercase text-[var(--text-muted)]">
                         <span>Est. 2024</span>
                         <span>High Stakes • High Reward</span>
                         <span>Exclusive Access</span>

@@ -37,6 +37,7 @@ export default function Hand({
             return (
               <motion.div
                 key={c.id}
+                id={`target-card-${c.id}`}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{
                   opacity: 1,
@@ -74,6 +75,7 @@ export default function Hand({
           return (
             <motion.div
               key={c.id}
+              id={hideCards ? `target-card-${c.id}` : `card-${c.id}`}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{
                 opacity: 1,

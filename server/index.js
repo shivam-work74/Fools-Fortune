@@ -47,7 +47,8 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.get('/api/leaderboard', async (req, res) => {
-    const top = await getTopPlayers();
+    const { sortBy } = req.query; // 'wins' or 'skillRating'
+    const top = await getTopPlayers(sortBy);
     res.json(top);
 });
 

@@ -4,6 +4,7 @@ import { useSocket } from "../../context/SocketContext";
 import { useAuth } from "../../context/AuthContext";
 import { useVoice } from "../../context/VoiceContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { EmoteSelector, EmoteOverlay } from "./EmoteSystem";
 
 export default function UnoLobby() {
     const { state } = useLocation();
@@ -18,20 +19,22 @@ export default function UnoLobby() {
     const [joining, setJoining] = useState(false);
     const joinedRef = useRef(false);
 
-    const maxPlayers = state?.maxPlayers || 4;
+    const [maxPlayers, setMaxPlayers] = useState(state?.maxPlayers || 4);
     const isHost = state?.isHost || false;
 
     // ── Register all socket listeners once ──
     useEffect(() => {
         if (!socket) return;
 
-        socket.on('uno:lobbyCreated', ({ lobbyId: newId, players: ps }) => {
+        socket.on('uno:lobbyCreated', ({ lobbyId: newId, players: ps, maxPlayers: mp }) => {
             setLobbyId(newId);
             setPlayers(ps);
+            if (mp) setMaxPlayers(mp);
         });
 
-        socket.on('uno:playerJoined', ({ players: ps }) => {
+        socket.on('uno:playerJoined', ({ players: ps, maxPlayers: mp }) => {
             setPlayers(ps);
+            if (mp) setMaxPlayers(mp);
             setJoining(false);
             // Auto-call new players
             ps.forEach(p => {
@@ -100,6 +103,11 @@ export default function UnoLobby() {
         socket.emit('uno:kickPlayer', { lobbyId, targetId });
     };
 
+    const handleSendEmote = (emote) => {
+        if (!socket || !lobbyId) return;
+        socket.emit('uno:sendEmote', { lobbyId, emote });
+    };
+
     const copyCode = () => {
         if (lobbyId) {
             navigator.clipboard.writeText(lobbyId);
@@ -121,8 +129,9 @@ export default function UnoLobby() {
     };
 
     return (
-        <div className="min-h-screen bg-[#070505] text-amber-50 flex items-center justify-center p-4 font-sans relative overflow-hidden">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex items-center justify-center p-4 font-sans relative overflow-hidden transition-colors duration-500">
             {/* Immersive Background Elements */}
+            <EmoteOverlay socket={socket} players={players} />
             <div className="absolute inset-0 opacity-20 pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-red-600 rounded-full blur-[180px]" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600 rounded-full blur-[180px]" />
@@ -136,12 +145,12 @@ export default function UnoLobby() {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className="max-w-6xl w-full bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[40px] p-8 lg:p-14 shadow-[0_40px_100px_rgba(0,0,0,0.8)] relative z-10"
+                className="max-w-6xl w-full bg-[var(--bg-glass)] backdrop-blur-2xl border border-[var(--border-glass)] rounded-[40px] p-8 lg:p-14 shadow-[var(--shadow-premium)] relative z-10"
             >
                 {/* Luxury Top Bar */}
                 <div className="absolute top-0 left-10 right-10 h-[2px] bg-gradient-to-r from-transparent via-red-500/80 to-transparent" />
                 <div className="absolute top-0 left-0 w-full h-full rounded-[40px] pointer-events-none overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-[300px] bg-gradient-to-b from-white/5 to-transparent" />
+                    <div className="absolute top-0 left-0 w-full h-[300px] bg-gradient-to-b from-[var(--text-primary)]/5 to-transparent" />
                 </div>
 
                 {/* Header Section */}
@@ -153,16 +162,17 @@ export default function UnoLobby() {
                                 transition={{ repeat: Infinity, duration: 2 }}
                                 className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_15px_#ef4444]"
                             />
-                            <span className="text-[10px] uppercase tracking-[0.4em] text-white/40 font-bold">The Royal Tournament</span>
+                            <span className="text-[10px] uppercase tracking-[0.4em] text-[var(--text-muted)] font-bold">The Royal Tournament</span>
                         </div>
                         <div className="flex items-center gap-6">
                             <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-none flex items-center">
                                 <span className="text-red-600 drop-shadow-[0_4px_10px_rgba(220,38,38,0.5)]">U</span>
                                 <span className="text-blue-600 mx-[-0.05em] drop-shadow-[0_4px_10px_rgba(37,99,235,0.5)]">N</span>
                                 <span className="text-green-600 drop-shadow-[0_4px_10px_rgba(22,163,74,0.5)]">O</span>
-                                <span className="text-white/90 text-4xl md:text-5xl ml-4 font-light tracking-[0.1em]">PREMIUM</span>
+                                <span className="text-[var(--text-primary)] text-4xl md:text-5xl ml-4 font-light tracking-[0.1em]">PREMIUM</span>
                             </h1>
-                            <div className="flex gap-3 bg-white/5 p-2 rounded-2xl border border-white/10 ml-4">
+                            <EmoteSelector onSelect={handleSendEmote} />
+                            <div className="flex gap-3 bg-[var(--bg-elevated)] p-2 rounded-2xl border border-[var(--border-primary)] ml-4">
                                 <button
                                     onClick={testMic}
                                     className="w-10 h-10 rounded-full flex items-center justify-center text-sm transition-all shadow-lg hover:scale-110 active:scale-95 border bg-blue-600/20 border-blue-500/50 text-white"
@@ -193,12 +203,12 @@ export default function UnoLobby() {
                             whileHover={{ scale: 1.02 }}
                             className="flex flex-col items-end"
                         >
-                            <span className="text-[10px] uppercase tracking-[0.3em] text-white/30 mb-2 font-bold px-4">Invitation Link</span>
+                            <span className="text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)] mb-2 font-bold px-4">Invitation Link</span>
                             <div
                                 onClick={copyCode}
-                                className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-3xl pl-6 pr-2 py-2 cursor-pointer transition-all group"
+                                className="flex items-center gap-4 bg-[var(--bg-glass)] hover:bg-[var(--bg-elevated)] border border-[var(--border-glass)] rounded-3xl pl-6 pr-2 py-2 cursor-pointer transition-all group shadow-sm"
                             >
-                                <span className="font-mono text-xl tracking-[0.3em] text-white/80 group-hover:text-amber-400 transition-colors">{lobbyId}</span>
+                                <span className="font-mono text-xl tracking-[0.3em] text-[var(--text-primary)] group-hover:text-amber-400 transition-colors">{lobbyId}</span>
                                 <div className="bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-2xl group-active:scale-95 transition-transform">
                                     Copy
                                 </div>
@@ -211,10 +221,7 @@ export default function UnoLobby() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                     {/* Players Section */}
                     <div className="lg:col-span-8 space-y-8">
-                        <div className="flex items-center justify-between pb-4 border-b border-white/5">
-                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/50">Active Contenders</h3>
-                            <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{players.length} / {maxPlayers} Seats Occupied</span>
-                        </div>
+                        <div className="flex items-center justify-between pb-4 border-b border-[var(--border-primary)]">                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-[var(--text-muted)]">Active Contenders</h3>                            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{players.length} / {maxPlayers} Seats Occupied</span>                        </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <AnimatePresence>
@@ -225,11 +232,11 @@ export default function UnoLobby() {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, scale: 0.9 }}
-                                        className="group relative flex items-center gap-5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/10 rounded-[24px] p-5 transition-all duration-300"
+                                        className="group relative flex items-center gap-5 bg-[var(--bg-elevated)]/50 hover:bg-[var(--bg-elevated)] border border-[var(--border-primary)] hover:border-yellow-500/30 rounded-[24px] p-5 transition-all duration-300"
                                     >
                                         <div className="relative">
                                             <div className={`absolute inset-0 rounded-full blur-md opacity-0 group-hover:opacity-40 transition-opacity duration-500 ${p.isHost ? 'bg-amber-400' : 'bg-blue-400'}`} />
-                                            <div className="w-16 h-16 rounded-full bg-black border-2 border-white/10 flex items-center justify-center text-3xl z-10 relative">
+                                            <div className="w-16 h-16 rounded-full bg-[var(--bg-secondary)] border-2 border-[var(--border-primary)] flex items-center justify-center text-3xl z-10 relative">
                                                 {p.avatar}
                                             </div>
                                             {p.isHost && (
@@ -240,11 +247,11 @@ export default function UnoLobby() {
                                         </div>
 
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-xl font-bold text-white truncate group-hover:text-amber-100 transition-colors">
+                                            <div className="text-xl font-bold text-[var(--text-primary)] truncate group-hover:text-amber-100 transition-colors">
                                                 {p.username}
-                                                {p.id === socket?.id && <span className="text-[10px] ml-2 text-white/20 uppercase font-black tracking-tighter">(You)</span>}
+                                                {p.id === socket?.id && <span className="text-[10px] ml-2 text-[var(--text-muted)] uppercase font-black tracking-tighter">(You)</span>}
                                             </div>
-                                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 mt-1">
+                                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)] mt-1">
                                                 {p.isHost ? "Grand Master" : "Challenger"}
                                             </p>
                                         </div>
@@ -263,13 +270,13 @@ export default function UnoLobby() {
                                 ))}
 
                                 {Array.from({ length: Math.max(0, maxPlayers - players.length) }).map((_, i) => (
-                                    <div key={`empty-${i}`} className="flex items-center gap-5 p-5 rounded-[24px] border-2 border-dashed border-white/5 bg-white/[0.01] opacity-50">
-                                        <div className="w-16 h-16 rounded-full bg-white/[0.05] border-2 border-white/5 flex items-center justify-center">
-                                            <span className="text-white/10 font-bold">?</span>
+                                    <div key={`empty-${i}`} className="flex items-center gap-5 p-5 rounded-[24px] border-2 border-dashed border-[var(--border-primary)] bg-[var(--bg-elevated)]/20 opacity-50">
+                                        <div className="w-16 h-16 rounded-full bg-[var(--bg-secondary)] border-2 border-[var(--border-primary)] flex items-center justify-center">
+                                            <span className="text-[var(--text-muted)] font-bold">?</span>
                                         </div>
                                         <div className="space-y-2">
-                                            <div className="h-4 w-28 bg-white/5 rounded-full" />
-                                            <div className="h-2 w-16 bg-white/5 rounded-full" />
+                                            <div className="h-4 w-28 bg-[var(--bg-elevated)] rounded-full" />
+                                            <div className="h-2 w-16 bg-[var(--bg-elevated)] rounded-full" />
                                         </div>
                                     </div>
                                 ))}
@@ -280,21 +287,21 @@ export default function UnoLobby() {
                     {/* Sidebar Controls */}
                     <div className="lg:col-span-4 flex flex-col gap-10">
                         {/* Status Overlay */}
-                        <div className="bg-gradient-to-br from-white/[0.05] to-transparent border border-white/10 rounded-[32px] p-8 space-y-6">
+                        <div className="bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-[32px] p-8 space-y-6 shadow-sm">
                             <div className="space-y-4">
                                 <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-red-500">Table Settings</h3>
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center text-sm">
-                                        <span className="text-white/40 font-medium">Card Stack</span>
+                                        <span className="text-[var(--text-muted)] font-medium">Card Stack</span>
                                         <span className="text-white/80 font-bold uppercase tracking-widest text-[10px] bg-red-500/20 border border-red-500/30 px-2 py-1 rounded">Enabled</span>
                                     </div>
                                     <div className="flex justify-between items-center text-sm">
-                                        <span className="text-white/40 font-medium">Challenge</span>
-                                        <span className="text-white/80 font-bold uppercase tracking-widest text-[10px] bg-blue-500/20 border border-blue-500/30 px-2 py-1 rounded">Active</span>
+                                        <span className="text-[var(--text-muted)] font-medium">Challenge</span>
+                                        <span className="text-[var(--text-primary)] font-bold uppercase tracking-widest text-[10px] bg-blue-500/20 border border-blue-500/30 px-2 py-1 rounded">Active</span>
                                     </div>
                                     <div className="flex justify-between items-center text-sm">
-                                        <span className="text-white/40 font-medium">Rules</span>
-                                        <span className="text-white/80 font-bold uppercase tracking-widest text-[10px] border border-white/10 px-2 py-1 rounded">Standard</span>
+                                        <span className="text-[var(--text-muted)] font-medium">Rules</span>
+                                        <span className="text-[var(--text-primary)] font-bold uppercase tracking-widest text-[10px] border border-[var(--border-primary)] px-2 py-1 rounded">Standard</span>
                                     </div>
                                 </div>
                             </div>
@@ -321,7 +328,7 @@ export default function UnoLobby() {
                                     </div>
                                 ) : (
                                     <div className="space-y-8">
-                                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">
+                                        <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-[0.3em]">
                                             {players.length < 2 ? "Waiting for players" : "All seats ready"}
                                         </p>
 
@@ -347,11 +354,11 @@ export default function UnoLobby() {
                                                             key={i}
                                                             animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
                                                             transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
-                                                            className="w-1.5 h-1.5 rounded-full bg-white/20"
+                                                            className="w-1.5 h-1.5 rounded-full bg-amber-400/50"
                                                         />
                                                     ))}
                                                 </div>
-                                                <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.5em]">House is Dealing</span>
+                                                <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.5em]">House is Dealing</span>
                                             </div>
                                         )}
                                     </div>
@@ -361,7 +368,7 @@ export default function UnoLobby() {
 
                         <button
                             onClick={() => navigate('/dashboard')}
-                            className="text-[10px] font-black text-white/20 hover:text-red-500 uppercase tracking-[0.5em] transition-all self-center"
+                            className="text-[10px] font-black text-[var(--text-muted)] hover:text-red-500 uppercase tracking-[0.5em] transition-all self-center"
                         >
                             Return To Dashboard
                         </button>

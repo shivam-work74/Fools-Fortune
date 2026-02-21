@@ -73,7 +73,7 @@ export function handleGameEvents(io, socket) {
         });
 
         socket.join(lobbyId);
-        socket.emit('lobbyCreated', { lobbyId, players: [player] });
+        socket.emit('lobbyCreated', { lobbyId, players: [player], maxPlayers: mode });
         console.log(`Lobby ${lobbyId} created by ${username}`);
     });
 
@@ -87,7 +87,7 @@ export function handleGameEvents(io, socket) {
         const existingPlayer = lobby.players.find(p => p.id === socket.id);
         if (existingPlayer) {
             existingPlayer.peerId = peerId;
-            io.to(lobbyId).emit('playerJoined', { players: lobby.players });
+            io.to(lobbyId).emit('playerJoined', { players: lobby.players, maxPlayers: lobby.mode });
             return;
         }
 
@@ -95,7 +95,7 @@ export function handleGameEvents(io, socket) {
         lobby.players.push(player);
         socket.join(lobbyId);
 
-        io.to(lobbyId).emit('playerJoined', { players: lobby.players });
+        io.to(lobbyId).emit('playerJoined', { players: lobby.players, maxPlayers: lobby.mode });
 
         // Send current settings to new joiner
         if (lobby.settings) {
@@ -158,8 +158,22 @@ export function handleGameEvents(io, socket) {
         const lobby = lobbies.get(lobbyId);
         if (!lobby || lobby.hostId !== socket.id) return;
 
-        // Check player count (for now allow starting with any count > 1 for testing)
-        if (lobby.players.length < 2) return socket.emit('error', 'Need at least 2 players');
+        // Auto-fill bots up to 'mode' (2 or 4)
+        const BOT_NAMES = ["Spectre-Bot", "Cipher-Bot", "Apex-Bot", "Nova-Bot"];
+        const numHumans = lobby.players.length;
+        const targetCount = lobby.mode || 4;
+        if (numHumans < targetCount) {
+            for (let i = numHumans; i < targetCount; i++) {
+                lobby.players.push({
+                    id: `bot-${nanoid(5)}`,
+                    username: BOT_NAMES[i] || `Bot ${i}`,
+                    avatar: '🤖',
+                    isHost: false,
+                    isBot: true,
+                    peerId: null
+                });
+            }
+        }
 
         // Init Game State
         const deck = createDeck();
@@ -199,6 +213,8 @@ export function handleGameEvents(io, socket) {
             };
             io.to(p.id).emit('gameStarted', privateState);
         });
+
+        checkAndTriggerBotTurn(io, lobbyId);
     });
 
     // --- GAMEPLAY Sockets ---
@@ -340,7 +356,7 @@ export function handleGameEvents(io, socket) {
             }
         };
         socket.to(lobbyId).emit('spectatorUpdate', spectatorState);
-
+        checkAndTriggerBotTurn(io, lobbyId);
     });
 
 
@@ -364,13 +380,113 @@ export function handleGameEvents(io, socket) {
                 ...ps,
                 hand: undefined,
                 handCount: ps.hand.length
-            }))
+            })),
+            maxPlayers: lobby.mode
         };
         socket.emit('gameStateUpdate', privateState);
     });
 
-    socket.on('disconnect', () => {
-        // Handle disconnects
+    // ── Send Emote ──
+    socket.on('sendEmote', ({ lobbyId, emote }) => {
+        io.to(lobbyId).emit('emoteReceived', {
+            senderId: socket.id,
+            emote
+        });
     });
+
+    function checkAndTriggerBotTurn(io, lobbyId) {
+        const lobby = lobbies.get(lobbyId);
+        if (!lobby || lobby.status !== 'playing' || !lobby.gameState) return;
+        const state = lobby.gameState;
+        const currentPlayer = state.players[state.turnIndex];
+
+        if (currentPlayer && currentPlayer.isBot) {
+            setTimeout(() => {
+                playBotTurn(io, lobbyId);
+            }, 2000);
+        }
+    }
+
+    function playBotTurn(io, lobbyId) {
+        const lobby = lobbies.get(lobbyId);
+        if (!lobby || lobby.status !== 'playing' || !lobby.gameState || lobby.gameState.loser) return;
+
+        const state = lobby.gameState;
+        const currentPlayerIdx = state.turnIndex;
+        const currentPlayer = state.players[currentPlayerIdx];
+
+        // Pick a card from the person to the left (next index)
+        let targetPlayerIdx = (currentPlayerIdx + 1) % state.players.length;
+        while (state.players[targetPlayerIdx].finished && targetPlayerIdx !== currentPlayerIdx) {
+            targetPlayerIdx = (targetPlayerIdx + 1) % state.players.length;
+        }
+
+        if (targetPlayerIdx === currentPlayerIdx) return; // Should not happen if game is not over
+
+        const targetPlayer = state.players[targetPlayerIdx];
+        if (targetPlayer.hand.length === 0) return;
+
+        const cardIdx = Math.floor(Math.random() * targetPlayer.hand.length);
+        const drawnCard = targetPlayer.hand[cardIdx];
+
+        // Remove from target
+        targetPlayer.hand.splice(cardIdx, 1);
+        targetPlayer.handCount--;
+
+        // Add to current
+        const pairIdx = currentPlayer.hand.findIndex(c => c.rank === drawnCard.rank);
+        let match = null;
+
+        if (pairIdx !== -1) {
+            match = currentPlayer.hand[pairIdx];
+            currentPlayer.hand.splice(pairIdx, 1);
+            currentPlayer.discards.push(match, drawnCard);
+        } else {
+            currentPlayer.hand.push(drawnCard);
+        }
+
+        currentPlayer.handCount = currentPlayer.hand.length;
+
+        // Check finished
+        if (currentPlayer.hand.length === 0) currentPlayer.finished = true;
+        if (targetPlayer.hand.length === 0) targetPlayer.finished = true;
+
+        // Next turn
+        state.turnIndex = (state.turnIndex + 1) % state.players.length;
+        while (state.players[state.turnIndex].finished) {
+            state.turnIndex = (state.turnIndex + 1) % state.players.length;
+            // Game over check
+            const active = state.players.filter(p => !p.finished);
+            if (active.length === 1) {
+                state.loser = active[0].username;
+                break;
+            }
+        }
+
+        // Broadcast
+        lobby.players.forEach((p, idx) => {
+            const privateState = {
+                ...state,
+                myHand: state.players[idx].hand,
+                players: state.players.map(ps => ({
+                    ...ps,
+                    hand: undefined,
+                    handCount: ps.hand.length
+                })),
+                lastAction: {
+                    from: targetPlayer.username,
+                    to: currentPlayer.username,
+                    match: !!match
+                }
+            };
+            io.to(p.id).emit('gameStateUpdate', privateState);
+        });
+
+        if (state.loser) {
+            io.to(lobbyId).emit('gameOver', { loser: state.loser });
+        } else {
+            checkAndTriggerBotTurn(io, lobbyId);
+        }
+    }
 }
 

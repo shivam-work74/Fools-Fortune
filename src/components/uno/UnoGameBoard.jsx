@@ -6,6 +6,7 @@ import { useVoice } from "../../context/VoiceContext";
 import { motion, AnimatePresence } from "framer-motion";
 import UnoCard, { ColorIndicator } from "./UnoCard";
 import UnoWinnerModal from "./UnoWinnerModal";
+import { EmoteSelector, EmoteOverlay } from "./EmoteSystem";
 
 // ─── Color Picker Modal ───────────────────────────────────────────────────────
 const COLORS = ['red', 'blue', 'green', 'yellow'];
@@ -23,16 +24,16 @@ function ColorPicker({ onChoose }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--bg-glass)] backdrop-blur-xl"
         >
             <motion.div
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
-                className="bg-[#111] border border-white/10 rounded-[40px] p-12 text-center shadow-[0_40px_100px_rgba(0,0,0,0.8)] max-w-md w-full relative"
+                className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-[40px] p-12 text-center shadow-[0_40px_100px_rgba(0,0,0,0.8)] max-w-md w-full relative"
             >
                 <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent" />
-                <h3 className="text-4xl font-black text-white mb-2 tracking-tighter">CHOOSE DESTINY</h3>
-                <p className="text-white/30 text-[10px] font-black uppercase tracking-[0.4em] mb-10">Select the next house color</p>
+                <h3 className="text-4xl font-black text-[var(--text-primary)] mb-2 tracking-tighter">CHOOSE DESTINY</h3>
+                <p className="text-[var(--text-muted)] text-[10px] font-black uppercase tracking-[0.4em] mb-10">Select the next house color</p>
 
                 <div className="grid grid-cols-2 gap-6">
                     {COLORS.map(c => (
@@ -43,8 +44,8 @@ function ColorPicker({ onChoose }) {
                             onClick={() => onChoose(c)}
                             className={`group relative h-32 rounded-3xl ${COLOR_CLASSES[c]} border border-white/20 flex flex-col items-center justify-center gap-2 p-4 transition-all overflow-hidden`}
                         >
-                            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="w-12 h-12 rounded-full bg-white/20 border border-white/40 mb-1" />
+                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="w-12 h-12 rounded-full bg-white/30 border border-white/50 mb-1" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-white/90">{COLOR_LABELS[c]}</span>
                         </motion.button>
                     ))}
@@ -68,15 +69,15 @@ function OpponentZone({ player, isTurn, position = 'top' }) {
     });
 
     return (
-        <div className="flex flex-col items-center gap-4">
+        <div id={`opponent-card-${player.username}`} className="flex flex-col items-center gap-4">
             {/* Premium Profile Card */}
             <motion.div
                 animate={isTurn ? { y: [0, -5, 0] } : {}}
                 transition={{ repeat: Infinity, duration: 2 }}
-                className={`relative flex items-center gap-4 bg-white/[0.03] backdrop-blur-md border ${isTurn ? 'border-amber-500/50 shadow-[0_10px_30px_rgba(245,158,11,0.2)]' : 'border-white/5'} rounded-2xl p-3 pr-6 transition-all`}
+                className={`relative flex items-center gap-4 bg-[var(--bg-glass)] backdrop-blur-md border ${isTurn ? 'border-amber-500/50 shadow-[0_10px_30px_rgba(245,158,11,0.2)]' : 'border-[var(--border-glass)]'} rounded-2xl p-3 pr-6 transition-all shadow-sm`}
             >
                 <div className="relative">
-                    <div className="w-12 h-12 rounded-full border-2 border-white/10 bg-black flex items-center justify-center text-2xl z-10 relative">
+                    <div className="w-12 h-12 rounded-full border-2 border-[var(--border-primary)] bg-[var(--bg-secondary)] flex items-center justify-center text-2xl z-10 relative shadow-inner">
                         {player.avatar}
                     </div>
                     {isTurn && (
@@ -100,12 +101,12 @@ function OpponentZone({ player, isTurn, position = 'top' }) {
                     )}
                 </div>
                 <div>
-                    <div className="text-sm font-black text-white/90 tracking-tight">{player.username}</div>
+                    <div className="text-sm font-black text-[var(--text-primary)] tracking-tight">{player.username}</div>
                     <div className="flex items-center gap-2 mt-0.5">
-                        <div className="h-1 w-12 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-1 w-12 bg-[var(--border-primary)] rounded-full overflow-hidden">
                             <div className="h-full bg-red-500" style={{ width: `${(cardCount / 15) * 100}%` }} />
                         </div>
-                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">{cardCount} Cards</span>
+                        <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">{cardCount} Cards</span>
                     </div>
                 </div>
             </motion.div>
@@ -156,6 +157,35 @@ function Toast({ message, color = 'yellow' }) {
     );
 }
 
+function MovingCardOverlay({ movingCard }) {
+    if (!movingCard) return null;
+    const { fromRect, toRect, card } = movingCard;
+
+    return (
+        <motion.div
+            initial={{
+                position: 'fixed',
+                top: fromRect.top,
+                left: fromRect.left,
+                width: fromRect.width,
+                height: fromRect.height,
+                zIndex: 9999,
+                rotate: 0,
+            }}
+            animate={{
+                top: toRect.top + (toRect.height / 2) - (fromRect.height / 2),
+                left: toRect.left + (toRect.width / 2) - (fromRect.width / 2),
+                rotate: 360,
+                scale: [1, 1.2, 1],
+            }}
+            transition={{ duration: 0.7, ease: "easeInOut" }}
+            style={{ pointerEvents: 'none' }}
+        >
+            <UnoCard card={card} small={fromRect.width < 80} />
+        </motion.div>
+    );
+}
+
 // ─── Main Game Board ──────────────────────────────────────────────────────────
 export default function UnoGameBoard() {
     const { lobbyId } = useParams();
@@ -180,6 +210,7 @@ export default function UnoGameBoard() {
     const [lastPlayedCard, setLastPlayedCard] = useState(null);
     const [drawAccumulator, setDrawAccumulator] = useState(0);
     const [mySaidUno, setMySaidUno] = useState(false);
+    const [movingCard, setMovingCard] = useState(null); // { fromRect, toRect, card, id }
 
     const addToast = useCallback((message, color = 'yellow') => {
         const id = Date.now();
@@ -206,10 +237,31 @@ export default function UnoGameBoard() {
         socket.on('uno:gameStateUpdate', applyState);
         socket.emit('uno:requestGameState', { lobbyId });
 
-        socket.on('uno:cardPlayed', ({ card, currentColor: cc, drawAccumulator: da }) => {
+        socket.on('uno:cardPlayed', ({ playerIdx, card, currentColor: cc, drawAccumulator: da }) => {
             setLastPlayedCard(card);
             setCurrentColor(cc);
             setDrawAccumulator(da || 0);
+
+            // Animate Play
+            const player = players[playerIdx];
+            if (player) {
+                const isMe = player.username === user.username;
+                const fromId = isMe ? `local-card-${card.id}` : `opponent-card-${player.username}`;
+                animateMove(fromId, 'discard-pile', card);
+            }
+        });
+
+        socket.on('uno:cardDrawn', ({ playerIdx, drawCount }) => {
+            const player = players[playerIdx];
+            if (player) {
+                const toId = player.username === user.username ? 'local-hand' : `opponent-card-${player.username}`;
+                // We don't know the exact card for opponents, just animate a card back
+                for (let i = 0; i < Math.min(drawCount, 3); i++) {
+                    setTimeout(() => {
+                        animateMove('draw-pile', toId, { color: 'wild' });
+                    }, i * 150);
+                }
+            }
         });
 
         socket.on('uno:chooseColor', () => setShowColorPicker(true));
@@ -226,6 +278,7 @@ export default function UnoGameBoard() {
         return () => {
             socket.off('uno:gameStateUpdate');
             socket.off('uno:cardPlayed');
+            socket.off('uno:cardDrawn');
             socket.off('uno:chooseColor');
             socket.off('uno:gameOver');
             socket.off('uno:unoCalled');
@@ -234,7 +287,26 @@ export default function UnoGameBoard() {
             socket.off('uno:playerFinished');
             socket.off('uno:error');
         };
-    }, [socket, lobbyId, applyState, addToast]);
+    }, [socket, lobbyId, applyState, addToast, players, user.username]);
+
+    const animateMove = (fromId, toId, card) => {
+        const fromEl = document.getElementById(fromId) || (fromId === 'local-hand' ? document.querySelector('[id^="local-card-"]') : null);
+        const toEl = document.getElementById(toId);
+
+        if (fromEl && toEl) {
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+
+            setMovingCard({
+                fromRect,
+                toRect,
+                card,
+                id: Math.random()
+            });
+
+            setTimeout(() => setMovingCard(null), 800);
+        }
+    };
 
     const playableCardIds = React.useMemo(() => {
         if (!myTurn || !topCard) return new Set();
@@ -273,11 +345,16 @@ export default function UnoGameBoard() {
         }
     };
 
+    const handleSendEmote = (emote) => {
+        if (!socket || !lobbyId) return;
+        socket.emit('uno:sendEmote', { lobbyId, emote });
+    };
+
     if (!gameState) return (
-        <div className="min-h-screen bg-[#070505] flex items-center justify-center">
+        <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
             <div className="flex flex-col items-center gap-6">
-                <div className="w-16 h-16 border-4 border-red-500/20 border-t-red-600 rounded-full animate-spin" />
-                <div className="text-white/20 font-black text-xs uppercase tracking-[0.5em] animate-pulse">Initializing Table</div>
+                <div className="w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                <div className="text-[var(--text-muted)] font-black text-xs uppercase tracking-[0.5em] animate-pulse">Initializing Table</div>
             </div>
         </div>
     );
@@ -293,13 +370,16 @@ export default function UnoGameBoard() {
     };
 
     return (
-        <div className="min-h-screen bg-[#070505] text-white font-sans flex flex-col relative overflow-hidden perspective-1000">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans flex flex-col relative overflow-hidden perspective-1000">
             {/* Dynamic Background Lighting */}
             <div className="absolute inset-0 pointer-events-none transition-all duration-1000">
                 <div className={`absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full opacity-20 blur-[150px] ${colorColors[currentColor]}`} />
                 <div className={`absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full opacity-20 blur-[150px] ${colorColors[currentColor]}`} />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black" />
             </div>
+
+            {/* Emote Handling */}
+            <EmoteOverlay socket={socket} players={players} />
+            <div className={`absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--bg-primary)] opacity-40`} />
 
             {/* Notifications */}
             <div className="fixed top-10 right-10 z-[100] flex flex-col gap-4">
@@ -313,24 +393,25 @@ export default function UnoGameBoard() {
                 {showColorPicker && <ColorPicker onChoose={handleColorChosen} />}
             </AnimatePresence>
             {winner && <UnoWinnerModal winner={winner} onClose={() => navigate('/dashboard')} />}
+            <MovingCardOverlay movingCard={movingCard} />
 
             {/* ── Header ── */}
-            <div className="relative z-50 flex items-center justify-between px-10 py-6 bg-white/[0.02] backdrop-blur-xl border-b border-white/5">
+            <div className="relative z-50 flex items-center justify-between px-10 py-6 bg-[var(--bg-secondary)]/10 backdrop-blur-xl border-b border-[var(--border-primary)]">
                 <div className="flex items-center gap-6">
                     <h1 className="text-4xl font-black tracking-tighter leading-none flex items-center">
                         <span className="text-red-600 drop-shadow-[0_2px_8px_#ef444466]">U</span>
                         <span className="text-blue-600 mx-[-0.05em] drop-shadow-[0_2px_8px_#2563eb66]">N</span>
                         <span className="text-green-600 drop-shadow-[0_2px_8px_#16a34a66]">O</span>
                     </h1>
-                    <div className="h-4 w-[1px] bg-white/10" />
+                    <div className="h-4 w-[1px] bg-[var(--border-primary)]" />
                     <div className="flex items-center gap-3">
                         <ColorIndicator color={currentColor} size={14} />
-                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">{currentColor} Realm</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-secondary)]">{currentColor} Realm</span>
                     </div>
                 </div>
 
                 <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-                    <div className="text-[8px] font-black uppercase tracking-[0.5em] text-white/20 mb-1">Active Realm</div>
+                    <div className="text-[8px] font-black uppercase tracking-[0.5em] text-[var(--text-muted)] mb-1">Active Realm</div>
                     {myTurn ? (
                         <motion.div
                             animate={{ opacity: [0.5, 1, 0.5] }}
@@ -349,7 +430,7 @@ export default function UnoGameBoard() {
 
                 <div className="flex items-center gap-8">
                     <div className="flex flex-col items-end">
-                        <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20">Flow Direction</span>
+                        <span className="text-[8px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)]">Flow Direction</span>
                         <span className="text-xl leading-none text-white/80">{gameState.direction === 1 ? '↻' : '↺'}</span>
                     </div>
                     {drawAccumulator > 0 && (
@@ -363,6 +444,8 @@ export default function UnoGameBoard() {
                     >
                         Repair Audio
                     </button>
+
+                    <EmoteSelector onSelect={handleSendEmote} />
                     <button
                         onClick={toggleMute}
                         className={`w-10 h-10 rounded-full flex items-center justify-center text-sm transition-all shadow-lg hover:scale-110 active:scale-95 border ${isMuted ? 'bg-red-600/40 border-red-500/50 text-white' : 'bg-green-600/40 border-green-500/50 text-white'}`}
@@ -426,7 +509,9 @@ export default function UnoGameBoard() {
                             {[...Array(5)].map((_, i) => (
                                 <div key={i} className="absolute inset-0 bg-[#111] rounded-2xl border border-white/5" style={{ transform: `translateZ(${-i * 2}px) translateY(${-i * 1}px)` }} />
                             ))}
-                            <UnoCard card={{ color: 'wild' }} faceDown playable={myTurn} />
+                            <div id="draw-pile">
+                                <UnoCard card={{ color: 'wild' }} faceDown playable={myTurn} />
+                            </div>
 
                             {myTurn && drawAccumulator > 0 && (
                                 <div className="absolute -top-4 -right-4 bg-red-600 w-10 h-10 rounded-full flex items-center justify-center font-black text-sm border-2 border-white/50 shadow-2xl z-50 animate-bounce">
@@ -434,7 +519,7 @@ export default function UnoGameBoard() {
                                 </div>
                             )}
                         </motion.div>
-                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 text-center mt-6">{drawPileCount} Deck Pool</div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)] text-center mt-6">{drawPileCount} Deck Pool</div>
                     </div>
 
                     {/* Discard Pile */}
@@ -449,7 +534,9 @@ export default function UnoGameBoard() {
                                     transition={{ type: "spring", stiffness: 200, damping: 20 }}
                                     className="relative z-10"
                                 >
-                                    <UnoCard card={topCard} />
+                                    <div id="discard-pile">
+                                        <UnoCard card={topCard} />
+                                    </div>
                                     {topCard.type === 'wild4' && myTurn && (
                                         <motion.button
                                             whileHover={{ scale: 1.05 }}
@@ -462,7 +549,7 @@ export default function UnoGameBoard() {
                                 </motion.div>
                             )}
                         </AnimatePresence>
-                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 text-center mt-6">Current Focus</div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)] text-center mt-6">Current Focus</div>
                     </div>
                 </div>
 
@@ -485,7 +572,7 @@ export default function UnoGameBoard() {
                             </div>
                             <div>
                                 <div className="text-xl font-black tracking-tight">{user.username}</div>
-                                <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em]">Royal Deck • {myHand.length} Cards</div>
+                                <div className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em]">Royal Deck • {myHand.length} Cards</div>
                             </div>
                         </div>
 
@@ -531,11 +618,13 @@ export default function UnoGameBoard() {
                                             className="relative"
                                             style={{ filter: !playable && myTurn ? 'brightness(0.6) saturate(0.5)' : 'none' }}
                                         >
-                                            <UnoCard
-                                                card={card}
-                                                playable={playable}
-                                                onClick={() => handlePlayCard(card)}
-                                            />
+                                            <div id={`local-card-${card.id}`}>
+                                                <UnoCard
+                                                    card={card}
+                                                    playable={playable}
+                                                    onClick={() => handlePlayCard(card)}
+                                                />
+                                            </div>
                                         </motion.div>
                                     );
                                 })}
@@ -544,6 +633,6 @@ export default function UnoGameBoard() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

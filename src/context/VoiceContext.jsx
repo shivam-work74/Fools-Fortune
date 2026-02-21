@@ -170,8 +170,9 @@ export const VoiceProvider = ({ children }) => {
                 const volts = rms * 100;
                 const speaking = volts > 1.5; // RMS threshold is lower
 
+                // Debugging: Log signal strength every ~10 seconds
                 logCounter++;
-                if (logCounter % 180 === 0) {
+                if (logCounter % 600 === 0) {
                     console.log(`[Voice] Activity Debug (${peerId}): Volts=${volts.toFixed(2)}, RMS=${rms.toFixed(4)}, State=${audioContext.state}`);
                 }
 

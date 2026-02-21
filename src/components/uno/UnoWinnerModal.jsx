@@ -5,7 +5,7 @@ export default function UnoWinnerModal({ winner, onClose }) {
     return (
         <AnimatePresence>
             <motion.div
-                className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-2xl"
+                className="fixed inset-0 z-[200] flex items-center justify-center bg-[var(--bg-glass)] backdrop-blur-2xl"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -46,7 +46,7 @@ export default function UnoWinnerModal({ winner, onClose }) {
                     {/* Background Glow */}
                     <div className="absolute inset-[-100px] bg-amber-500/20 rounded-full blur-[100px] pointer-events-none" />
 
-                    <div className="relative bg-[#0f0f0f] border border-white/10 rounded-[48px] p-16 shadow-[0_40px_100px_rgba(0,0,0,0.9)] overflow-hidden">
+                    <div className="relative bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-[48px] p-16 shadow-[var(--shadow-premium)] overflow-hidden">
                         {/* Luxury Accents */}
                         <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
                         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
@@ -80,7 +80,7 @@ export default function UnoWinnerModal({ winner, onClose }) {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.7 }}
-                                className="text-6xl md:text-7xl font-black text-white tracking-tighter leading-tight"
+                                className="text-6xl md:text-7xl font-black text-[var(--text-primary)] tracking-tighter leading-tight"
                             >
                                 {winner?.username}
                             </motion.h2>
@@ -89,7 +89,7 @@ export default function UnoWinnerModal({ winner, onClose }) {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.9 }}
-                                className="text-white/40 font-medium italic text-lg"
+                                className="text-[var(--text-muted)] font-medium italic text-lg"
                             >
                                 The cards played in your favor.
                             </motion.div>

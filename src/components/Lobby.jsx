@@ -4,7 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useSocket } from "../context/SocketContext";
 import { useAuth } from "../context/AuthContext";
 import { useVoice } from "../context/VoiceContext";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { EmoteSelector, EmoteOverlay } from "./uno/EmoteSystem";
 
 const AVATARS = ["😎", "🤖", "🦊", "👽", "🤠", "👻", "🦄", "🐱"];
 
@@ -19,6 +20,7 @@ export default function Lobby() {
     const [lobbyId, setLobbyId] = useState(state?.lobbyId || "");
     const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0]);
     const [error, setError] = useState("");
+    const [maxPlayers, setMaxPlayers] = useState(state?.maxPlayers || 4);
     const [settings, setSettings] = useState({
         speedProtocol: false,
         blindFaith: false,
@@ -38,8 +40,9 @@ export default function Lobby() {
             }
         }
 
-        socket.on('playerJoined', ({ players }) => {
+        socket.on('playerJoined', ({ players, maxPlayers: mp }) => {
             setPlayers(players);
+            if (mp) setMaxPlayers(mp);
             // Auto-call new players who have a peerId
             players.forEach(p => {
                 if (p.username !== user.username && p.peerId) {
@@ -52,8 +55,9 @@ export default function Lobby() {
             });
         });
 
-        socket.on('lobbyCreated', ({ players }) => {
+        socket.on('lobbyCreated', ({ players, maxPlayers: mp }) => {
             setPlayers(players);
+            if (mp) setMaxPlayers(mp);
         });
 
         socket.on('settingsUpdated', (newSettings) => {
@@ -99,17 +103,23 @@ export default function Lobby() {
         socket.emit('updateSettings', { lobbyId, settings: newSettings });
     };
 
+    const handleSendEmote = (emote) => {
+        if (!socket || !lobbyId) return;
+        socket.emit('sendEmote', { lobbyId, emote });
+    };
+
     const copyCode = () => {
         navigator.clipboard.writeText(lobbyId);
         alert("Invitation Code copied to clipboard.");
     };
 
     return (
-        <div className="min-h-screen bg-plush text-amber-50 flex items-center justify-center p-4 font-serif relative overflow-hidden">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex items-center justify-center p-4 font-serif relative overflow-hidden">
+            <EmoteOverlay socket={socket} players={players} eventName="emoteReceived" />
             {/* Ambient Lighting */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-900/10 rounded-full blur-[120px] pointer-events-none" />
 
-            <div className="max-w-6xl w-full bg-black/80 border-gold rounded-3xl p-8 lg:p-10 shadow-plush relative z-10 backdrop-blur-xl">
+            <div className="max-w-6xl w-full bg-[var(--bg-secondary)]/80 border-gold rounded-3xl p-8 lg:p-10 shadow-plush relative z-10 backdrop-blur-xl">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-yellow-600/50 to-transparent" />
 
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
@@ -121,7 +131,7 @@ export default function Lobby() {
                         <h2 className="text-4xl md:text-5xl font-bold text-gold tracking-tight">PRIVATE SUITE</h2>
                     </div>
 
-                    <div className="flex gap-4 bg-white/5 p-2 rounded-2xl border border-white/10">
+                    <div className="flex gap-4 bg-[var(--bg-glass)] p-2 rounded-2xl border border-[var(--border-glass)]">
                         <button
                             onClick={toggleMute}
                             className={`w-10 h-10 rounded-full flex items-center justify-center text-sm transition-all shadow-lg hover:scale-110 active:scale-95 border ${isMuted ? 'bg-red-600/40 border-red-500/50 text-white' : 'bg-green-600/40 border-green-500/50 text-white'}`}
@@ -141,10 +151,10 @@ export default function Lobby() {
                     <div className="flex flex-col items-end gap-2">
                         <span className="text-xs uppercase tracking-widest text-gray-500 font-sans">VIP Access Code</span>
                         <div
-                            className="flex items-center gap-4 bg-white/5 hover:bg-white/10 border border-white/10 px-6 py-2 rounded-xl cursor-pointer transition-all group"
+                            className="flex items-center gap-4 bg-[var(--bg-glass)] hover:bg-[var(--bg-elevated)] border border-[var(--border-glass)] px-6 py-2 rounded-xl cursor-pointer transition-all group shadow-sm"
                             onClick={copyCode}
                         >
-                            <span className="font-mono text-2xl tracking-[0.2em] text-white group-hover:text-gold transition-colors">{lobbyId}</span>
+                            <span className="font-mono text-2xl tracking-[0.2em] text-[var(--text-primary)] group-hover:text-gold transition-colors">{lobbyId}</span>
                             <span className="text-xs uppercase bg-yellow-600/20 text-yellow-500 px-3 py-1 rounded border border-yellow-600/30">Copy</span>
                         </div>
                     </div>
@@ -162,11 +172,11 @@ export default function Lobby() {
                                 <motion.div
                                     key={i}
                                     initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                                    className="relative flex items-center gap-4 bg-gradient-to-br from-gray-900 to-black p-4 rounded-xl border border-white/5 hover:border-yellow-500/30 transition-colors group shadow-lg overflow-hidden"
+                                    className="relative flex items-center gap-4 bg-[var(--bg-elevated)] p-4 rounded-xl border border-[var(--border-primary)] hover:border-yellow-500/30 transition-colors group shadow-[var(--shadow-premium)] overflow-hidden"
                                 >
                                     <div className="relative">
-                                        <div className="w-14 h-14 rounded-full bg-gradient-to-b from-gray-800 to-black p-0.5 border border-yellow-500/30">
-                                            <div className="w-full h-full rounded-full flex items-center justify-center text-2xl bg-black/50">
+                                        <div className="w-14 h-14 rounded-full bg-[var(--bg-secondary)] p-0.5 border border-[var(--border-primary)]">
+                                            <div className="w-full h-full rounded-full flex items-center justify-center text-2xl bg-[var(--bg-glass)]">
                                                 {p.avatar || "👤"}
                                             </div>
                                         </div>
@@ -177,8 +187,8 @@ export default function Lobby() {
                                         )}
                                     </div>
                                     <div className="flex-1">
-                                        <div className="font-bold text-lg text-white group-hover:text-gold transition-colors">{p.username}</div>
-                                        <div className="text-xs text-gray-500 uppercase font-bold tracking-wider font-sans">
+                                        <div className="font-bold text-lg text-[var(--text-primary)] group-hover:text-gold transition-colors">{p.username}</div>
+                                        <div className="text-xs text-[var(--text-muted)] uppercase font-bold tracking-wider font-sans">
                                             {p.isHost ? "Suite Owner" : "Invited Guest"}
                                         </div>
                                     </div>
@@ -197,10 +207,10 @@ export default function Lobby() {
                             ))}
 
                             {/* Empty slots */}
-                            {[...Array(Math.max(0, 4 - players.length))].map((_, i) => (
-                                <div key={`empty-${i}`} className="flex items-center gap-4 p-4 rounded-xl border border-dashed border-white/10 opacity-30 select-none">
-                                    <div className="w-14 h-14 rounded-full bg-white/5" />
-                                    <div className="h-4 w-24 bg-white/5 rounded" />
+                            {[...Array(Math.max(0, maxPlayers - players.length))].map((_, i) => (
+                                <div key={`empty-${i}`} className="flex items-center gap-4 p-4 rounded-xl border border-dashed border-[var(--border-primary)] opacity-30 select-none">
+                                    <div className="w-14 h-14 rounded-full bg-[var(--border-primary)]" />
+                                    <div className="h-4 w-24 bg-[var(--border-primary)] rounded" />
                                 </div>
                             ))}
                         </div>
@@ -210,10 +220,11 @@ export default function Lobby() {
                     <div className="lg:col-span-4 flex flex-col gap-6">
 
                         {/* House Rules */}
-                        <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
+                        <div className="bg-[var(--bg-glass)] border border-[var(--border-glass)] rounded-2xl p-6 shadow-sm">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-gold font-sans">House Rules</h3>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 items-center">
+                                    <EmoteSelector onSelect={handleSendEmote} />
                                     <button
                                         onClick={testMic}
                                         className="bg-blue-600/20 hover:bg-blue-600/40 text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded border border-blue-500/20 transition-all shadow-sm"
@@ -229,10 +240,10 @@ export default function Lobby() {
                                 </div>
                             </div>
                             <div className="space-y-3">
-                                <div className="flex items-center justify-between p-3 bg-black/40 rounded-lg border border-white/5">
+                                <div className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-primary)]">
                                     <div>
-                                        <div className="text-sm font-bold text-gray-200">Speed Protocol</div>
-                                        <div className="text-[10px] text-gray-500 uppercase tracking-wider">10s Turn Timer</div>
+                                        <div className="text-sm font-bold text-[var(--text-primary)]">Speed Protocol</div>
+                                        <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">10s Turn Timer</div>
                                     </div>
                                     <button
                                         disabled={!state?.isHost}
@@ -243,10 +254,10 @@ export default function Lobby() {
                                     </button>
                                 </div>
 
-                                <div className="flex items-center justify-between p-3 bg-black/40 rounded-lg border border-white/5">
+                                <div className="flex items-center justify-between p-3 bg-[var(--bg-elevated)] rounded-lg border border-[var(--border-primary)]">
                                     <div>
-                                        <div className="text-sm font-bold text-gray-200">Blind Faith</div>
-                                        <div className="text-[10px] text-gray-500 uppercase tracking-wider">Shuffle on Turn</div>
+                                        <div className="text-sm font-bold text-[var(--text-primary)]">Blind Faith</div>
+                                        <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Shuffle on Turn</div>
                                     </div>
                                     <button
                                         disabled={!state?.isHost}
@@ -260,9 +271,9 @@ export default function Lobby() {
                         </div>
 
                         {/* Controls */}
-                        <div className="bg-gradient-to-b from-gray-800/40 to-black/40 border border-white/5 rounded-2xl p-8 text-center backdrop-blur-sm mt-auto">
-                            <h4 className="text-gray-400 font-sans text-xs uppercase tracking-widest mb-4">Suite Status</h4>
-                            <div className="text-2xl font-light italic text-yellow-100/80 mb-8">
+                        <div className="bg-[var(--bg-glass)] border border-[var(--border-primary)] rounded-2xl p-8 text-center backdrop-blur-sm mt-auto">
+                            <h4 className="text-[var(--text-muted)] font-sans text-xs uppercase tracking-[0.2em] mb-4">Suite Status</h4>
+                            <div className="text-2xl font-light italic text-[var(--text-primary)] mb-8">
                                 {players.length < 2 ? "Awaiting guests..." : "Table is ready."}
                             </div>
 
@@ -277,10 +288,10 @@ export default function Lobby() {
                                 </button>
                             ) : (
                                 <div className="flex flex-col items-center gap-4">
-                                    <div className="flex items-center justify-center gap-2 text-gray-500 text-sm font-sans uppercase tracking-widest animate-pulse">
-                                        <span className="w-1.5 h-1.5 bg-gray-500 rounded-full" />
+                                    <div className="flex items-center justify-center gap-2 text-[var(--text-muted)] text-sm font-sans uppercase tracking-widest animate-pulse">
+                                        <span className="w-1.5 h-1.5 bg-[var(--text-muted)] rounded-full" />
                                         Waiting for Host
-                                        <span className="w-1.5 h-1.5 bg-gray-500 rounded-full" />
+                                        <span className="w-1.5 h-1.5 bg-[var(--text-muted)] rounded-full" />
                                     </div>
                                     <button
                                         onClick={() => socket.emit('joinSpectator', { lobbyId, username: user.username })}

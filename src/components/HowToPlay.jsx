@@ -2,39 +2,39 @@ import React from "react";
 
 export default function HowToPlay({ onClose }) {
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
-      <div className="bg-gradient-to-br from-gray-900 to-black rounded-3xl p-8 w-[500px] text-center shadow-[0_0_50px_rgba(202,138,4,0.2)] border border-yellow-600/30 relative">
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/felt.png')] opacity-20 rounded-3xl pointer-events-none" />
+    <div className="fixed inset-0 bg-[var(--bg-glass)] backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-[40px] p-10 w-full max-w-lg text-center shadow-[var(--shadow-premium)] relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/felt.png')] opacity-[0.03] rounded-3xl pointer-events-none" />
 
-        <h2 className="text-3xl font-bold mb-6 text-gold font-serif tracking-wide border-b border-white/10 pb-4">House Rules</h2>
+        <h2 className="text-4xl font-black mb-8 text-gold tracking-tighter uppercase border-b border-[var(--border-primary)] pb-6">House Rules</h2>
 
-        <div className="text-left space-y-4 mb-8 font-sans text-amber-50/80">
-          <p className="text-sm italic text-yellow-500/60 text-center mb-4">
+        <div className="text-left space-y-6 mb-10 font-sans text-[var(--text-secondary)]">
+          <p className="text-xs italic text-yellow-600 font-bold uppercase tracking-widest text-center mb-6">
             "Trust no one. Keep your face blank and your hand hidden."
           </p>
-          <ul className="space-y-3 list-none">
-            <li className="flex gap-3 items-start">
-              <span className="text-yellow-500">1.</span>
-              <span>The dealer distributes all cards. Remove any pairs immediately to clear your hand.</span>
+          <ul className="space-y-4 list-none px-4">
+            <li className="flex gap-4 items-start">
+              <span className="text-yellow-600 font-black">01</span>
+              <span className="text-sm leading-relaxed">The dealer distributes all cards. Remove any pairs immediately to clear your hand.</span>
             </li>
-            <li className="flex gap-3 items-start">
-              <span className="text-yellow-500">2.</span>
-              <span>On your turn, draw one card from the player to your right (or left, depending on the house dealer).</span>
+            <li className="flex gap-4 items-start">
+              <span className="text-yellow-600 font-black">02</span>
+              <span className="text-sm leading-relaxed">On your turn, draw one card from the player to your right (or left, depending on cards).</span>
             </li>
-            <li className="flex gap-3 items-start">
-              <span className="text-yellow-500">3.</span>
-              <span>If you form a pair, discard it.</span>
+            <li className="flex gap-4 items-start">
+              <span className="text-yellow-600 font-black">03</span>
+              <span className="text-sm leading-relaxed">If you form a pair, discard it into the pile.</span>
             </li>
-            <li className="flex gap-3 items-start">
-              <span className="text-yellow-500">4.</span>
-              <span>The protocol ends when one poor soul is left holding the <strong>Joker (Old Maid)</strong>.</span>
+            <li className="flex gap-4 items-start">
+              <span className="text-yellow-600 font-black">04</span>
+              <span className="text-sm leading-relaxed">The protocol ends when one soul is left holding the <strong>Cursed Joker</strong>.</span>
             </li>
           </ul>
         </div>
 
         <button
           onClick={onClose}
-          className="px-8 py-3 bg-white/5 hover:bg-yellow-600/20 border border-yellow-600/50 rounded-full text-yellow-500 font-bold uppercase tracking-widest transition-all hover:scale-105"
+          className="w-full py-4 bg-[var(--bg-glass)] hover:bg-yellow-600/10 border border-yellow-600/50 rounded-[20px] text-yellow-600 font-black uppercase tracking-[0.2em] text-xs transition-all hover:scale-[1.02] shadow-sm"
         >
           I Understand
         </button>

@@ -135,7 +135,12 @@ export async function updateUserStats(username, result, details = {}) {
     await user.save();
 }
 
-export async function getTopPlayers() {
-    const users = await User.find().sort({ 'stats.wins': -1 }).limit(10);
-    return users.map(u => ({ username: u.username, wins: u.stats.wins }));
+export async function getTopPlayers(sortBy = 'wins') {
+    const sortField = sortBy === 'wins' ? 'stats.wins' : 'stats.skillRating';
+    const users = await User.find().sort({ [sortField]: -1 }).limit(10);
+    return users.map(u => ({
+        username: u.username,
+        wins: u.stats.wins,
+        skillRating: u.stats.skillRating
+    }));
 }

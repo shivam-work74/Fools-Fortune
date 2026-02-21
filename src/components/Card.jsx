@@ -10,7 +10,7 @@ export default function Card({ card, hidden, onClick, selected }) {
   if (hidden) {
     return (
       <div
-        className={`${cardBase} bg-gradient-to-br from-indigo-700 to-indigo-900 border-indigo-300 ${hoverEffect} cursor-pointer group`}
+        className={`${cardBase} bg-gradient-to-br from-indigo-700 to-indigo-900 border-[var(--border-primary)] ${hoverEffect} cursor-pointer group`}
         onClick={onClick}
       >
         {/* Pattern Overlay */}
@@ -36,7 +36,7 @@ export default function Card({ card, hidden, onClick, selected }) {
     <motion.div
       layoutId={`card-${card.id}`}
       className={`
-        ${cardBase} bg-white border-gray-300
+        ${cardBase} bg-white border-[var(--border-primary)]
         flex flex-col justify-between p-2 
         ${selected ? "ring-4 ring-yellow-400 -translate-y-4 shadow-2xl z-20" : hoverEffect}
       `}
