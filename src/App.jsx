@@ -3,6 +3,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
+import { VoiceProvider } from "./context/VoiceContext";
 import LandingPage from "./components/LandingPage";
 import Login from "./components/auth/Login";
 import Register from "./components/auth/Register";
@@ -23,32 +24,34 @@ export default function App() {
     <Router>
       <AuthProvider>
         <SocketProvider>
-          <Routes>
-            <Route path="/" element={<LandingPageWrapper />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+          <VoiceProvider>
+            <Routes>
+              <Route path="/" element={<LandingPageWrapper />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
 
-            <Route path="/dashboard" element={
-              <PrivateRoute><Dashboard /></PrivateRoute>
-            } />
+              <Route path="/dashboard" element={
+                <PrivateRoute><Dashboard /></PrivateRoute>
+              } />
 
-            {/* Old Maid / Fool's Fortune */}
-            <Route path="/lobby" element={
-              <PrivateRoute><Lobby /></PrivateRoute>
-            } />
-            <Route path="/game/:lobbyId" element={
-              <PrivateRoute><GameBoard /></PrivateRoute>
-            } />
+              {/* Old Maid / Fool's Fortune */}
+              <Route path="/lobby" element={
+                <PrivateRoute><Lobby /></PrivateRoute>
+              } />
+              <Route path="/game/:lobbyId" element={
+                <PrivateRoute><GameBoard /></PrivateRoute>
+              } />
 
-            {/* UNO */}
-            <Route path="/uno-lobby" element={
-              <PrivateRoute><UnoLobby /></PrivateRoute>
-            } />
-            <Route path="/uno/:lobbyId" element={
-              <PrivateRoute><UnoGameBoard /></PrivateRoute>
-            } />
+              {/* UNO */}
+              <Route path="/uno-lobby" element={
+                <PrivateRoute><UnoLobby /></PrivateRoute>
+              } />
+              <Route path="/uno/:lobbyId" element={
+                <PrivateRoute><UnoGameBoard /></PrivateRoute>
+              } />
 
-          </Routes>
+            </Routes>
+          </VoiceProvider>
         </SocketProvider>
       </AuthProvider>
     </Router>

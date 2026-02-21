@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSocket } from "../context/SocketContext";
 import { useAuth } from "../context/AuthContext";
+import { useVoice } from "../context/VoiceContext";
 import Hand from "./Hand";
 import Card from "./Card";
 import PlayerAvatar from "./PlayerAvatar";
@@ -114,6 +115,7 @@ export default function GameBoard() {
   const { lobbyId } = useParams();
   const socket = useSocket();
   const { user } = useAuth();
+  const { isMuted, toggleMute, isSpeakerEnabled, toggleSpeaker } = useVoice();
   const navigate = useNavigate();
 
   const [gameState, setGameState] = useState(null);
@@ -326,6 +328,28 @@ export default function GameBoard() {
             </span>
           </button>
         ))}
+
+        {/* Voice Control */}
+        <button
+          onClick={toggleMute}
+          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl transition-all shadow-lg hover:scale-110 active:scale-95 group relative border ${isMuted ? 'bg-red-600/40 border-red-500/50 text-white' : 'bg-green-600/40 border-green-500/50 text-white'}`}
+        >
+          {isMuted ? '🔇' : '🎙️'}
+          <span className="absolute right-full mr-3 text-xs uppercase tracking-widest bg-black/80 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-yellow-500/80 pointer-events-none">
+            {isMuted ? 'Unmute' : 'Mute'}
+          </span>
+        </button>
+
+        {/* Speaker Control */}
+        <button
+          onClick={toggleSpeaker}
+          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl transition-all shadow-lg hover:scale-110 active:scale-95 group relative border ${!isSpeakerEnabled ? 'bg-red-600/40 border-red-500/50 text-white' : 'bg-blue-600/40 border-blue-500/50 text-white'}`}
+        >
+          {isSpeakerEnabled ? '🔊' : '🔇'}
+          <span className="absolute right-full mr-3 text-xs uppercase tracking-widest bg-black/80 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-yellow-500/80 pointer-events-none">
+            {isSpeakerEnabled ? 'Disable Speaker' : 'Enable Speaker'}
+          </span>
+        </button>
       </div>
 
       <GameLog log={log} />
@@ -399,6 +423,7 @@ export default function GameBoard() {
                         finished={p.finished}
                         discards={p.discards}
                         avatar={p.avatar}
+                        peerId={p.peerId}
                       />
                     </div>
                   </div>
@@ -414,6 +439,7 @@ export default function GameBoard() {
                       discards={p.discards}
                       isTarget={isTarget}
                       avatar={p.avatar}
+                      peerId={p.peerId}
                     />
 
                     <div className={`
@@ -444,6 +470,6 @@ export default function GameBoard() {
       {winner && <WinnerPopup name={winner} onBack={() => setWinner(null)} />}
       {loser && <WinnerModal loserName={loser} players={gameState?.players} onRestart={() => navigate('/dashboard')} />}
 
-    </div>
+    </div >
   );
 }

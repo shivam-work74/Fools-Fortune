@@ -3,118 +3,174 @@ import { motion } from "framer-motion";
 
 const COLOR_MAP = {
     red: {
-        bg: "bg-red-600",
-        border: "border-red-400",
-        shadow: "shadow-red-500/50",
-        text: "text-red-100",
-        glow: "hover:shadow-[0_0_20px_rgba(239,68,68,0.6)]",
+        bg: "bg-gradient-to-br from-red-500 to-red-700",
+        border: "border-red-400/50",
+        accent: "bg-red-400/20",
+        text: "text-white",
+        glow: "shadow-[0_0_20px_rgba(239,68,68,0.5)]",
+        inner: "bg-red-800/40",
     },
     blue: {
-        bg: "bg-blue-600",
-        border: "border-blue-400",
-        shadow: "shadow-blue-500/50",
-        text: "text-blue-100",
-        glow: "hover:shadow-[0_0_20px_rgba(59,130,246,0.6)]",
+        bg: "bg-gradient-to-br from-blue-500 to-blue-700",
+        border: "border-blue-400/50",
+        accent: "bg-blue-400/20",
+        text: "text-white",
+        glow: "shadow-[0_0_20px_rgba(59,130,246,0.5)]",
+        inner: "bg-blue-800/40",
     },
     green: {
-        bg: "bg-green-600",
-        border: "border-green-400",
-        shadow: "shadow-green-500/50",
-        text: "text-green-100",
-        glow: "hover:shadow-[0_0_20px_rgba(34,197,94,0.6)]",
+        bg: "bg-gradient-to-br from-green-500 to-green-700",
+        border: "border-green-400/50",
+        accent: "bg-green-400/20",
+        text: "text-white",
+        glow: "shadow-[0_0_20px_rgba(34,197,94,0.5)]",
+        inner: "bg-green-800/40",
     },
     yellow: {
-        bg: "bg-yellow-500",
-        border: "border-yellow-300",
-        shadow: "shadow-yellow-500/50",
-        text: "text-yellow-900",
-        glow: "hover:shadow-[0_0_20px_rgba(234,179,8,0.6)]",
+        bg: "bg-gradient-to-br from-yellow-400 to-yellow-600",
+        border: "border-yellow-200/50",
+        accent: "bg-yellow-200/20",
+        text: "text-yellow-950",
+        glow: "shadow-[0_0_20px_rgba(234,179,8,0.5)]",
+        inner: "bg-yellow-200/30",
     },
     wild: {
-        bg: "bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500",
-        border: "border-white/50",
-        shadow: "shadow-white/20",
+        bg: "bg-[#111] border-white/20",
+        border: "border-white/20",
+        accent: "bg-white/10",
         text: "text-white",
-        glow: "hover:shadow-[0_0_25px_rgba(255,255,255,0.4)]",
+        glow: "shadow-[0_0_25px_rgba(255,255,255,0.3)]",
+        inner: "bg-white/5",
     },
 };
 
-const CARD_LABELS = {
-    skip: "🚫",
-    reverse: "↩️",
-    draw2: "+2",
-    wild: "🌈",
-    wild4: "+4\n🌈",
-    number: null, // uses value
+const ACTION_ICONS = {
+    skip: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full p-1 opacity-90">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+        </svg>
+    ),
+    reverse: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full p-1 opacity-90">
+            <polyline points="17 1 21 5 17 9" />
+            <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+            <polyline points="7 23 3 19 7 15" />
+            <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+    ),
+    draw2: <span className="text-xl sm:text-2xl font-black">+2</span>,
+    wild: (
+        <div className="w-full h-full relative p-1">
+            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 rounded-full overflow-hidden border border-white/20 rotate-45">
+                <div className="bg-red-500" />
+                <div className="bg-blue-500" />
+                <div className="bg-yellow-400" />
+                <div className="bg-green-500" />
+            </div>
+        </div>
+    ),
+    wild4: (
+        <div className="relative flex items-center justify-center p-1 w-full h-full">
+            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 rounded-full overflow-hidden border border-white/20 rotate-45 scale-90 translate-x-1 translate-y-1 opacity-50" />
+            <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] z-10">+4</span>
+            </div>
+            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 rounded-full overflow-hidden border border-white/20 rotate-45" />
+        </div>
+    ),
 };
 
 export default function UnoCard({ card, faceDown = false, playable = false, onClick, small = false, style = {} }) {
     const palette = COLOR_MAP[card?.color] || COLOR_MAP.wild;
+    const isAction = card?.type !== 'number';
+    const label = card?.type === 'number' ? card.value : (ACTION_ICONS[card?.type] || '?');
 
     if (faceDown) {
         return (
             <motion.div
                 style={style}
-                whileHover={playable ? { y: -6, scale: 1.04 } : {}}
+                whileHover={playable ? { y: -8, scale: 1.05, rotateY: 5 } : {}}
                 onClick={onClick}
                 className={`
-                    relative rounded-xl border-2 border-white/20 cursor-pointer select-none
-                    ${small ? "w-10 h-14" : "w-20 h-28 sm:w-24 sm:h-32"}
-                    bg-gradient-to-br from-gray-800 to-gray-900 shadow-lg
-                    flex items-center justify-center overflow-hidden
+                    relative rounded-2xl border-2 border-white/10 cursor-pointer select-none overflow-hidden
+                    ${small ? "w-10 h-14 border" : "w-20 h-28 sm:w-24 sm:h-32 shadow-[0_10px_30px_rgba(0,0,0,0.6)]"}
+                    bg-[#0a0a0a] transition-all duration-300
                 `}
             >
-                <div className="absolute inset-2 border-2 border-white/10 rounded-lg" />
-                <span className="text-white/30 font-black text-2xl select-none">UNO</span>
-                {/* Shine */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+                {/* Back Design */}
+                <div className="absolute inset-0 opacity-20">
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+                </div>
+                <div className="absolute inset-2 border border-white/5 rounded-xl flex items-center justify-center">
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 via-amber-500/10 to-blue-600/10" />
+                    <span className="text-white/20 font-black text-xl tracking-tighter italic">UNO</span>
+                </div>
+                {/* Physical edge highlight */}
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-white/20" />
+                <div className="absolute top-0 left-0 w-[1px] h-full bg-white/10" />
             </motion.div>
         );
     }
 
-    const label = card.type === 'number' ? card.value : CARD_LABELS[card.type];
-    const isActionCard = card.type !== 'number';
-
     return (
         <motion.div
             style={style}
-            whileHover={playable ? { y: -10, scale: 1.07, rotate: 0 } : {}}
+            whileHover={playable ? { y: -12, scale: 1.1, rotateY: 0, rotateX: 0, z: 50 } : {}}
             whileTap={playable ? { scale: 0.95 } : {}}
             onClick={playable ? onClick : undefined}
             className={`
-                relative rounded-xl border-2 select-none overflow-hidden
-                ${small ? "w-10 h-14" : "w-20 h-28 sm:w-24 sm:h-32"}
+                relative rounded-2xl border-2 select-none overflow-hidden transition-all duration-300
+                ${small ? "w-10 h-14 border" : "w-20 h-28 sm:w-24 sm:h-32 shadow-[0_15px_35px_rgba(0,0,0,0.5)]"}
                 ${palette.bg} ${palette.border}
-                ${playable ? `cursor-pointer shadow-lg ${palette.glow} transition-shadow` : "cursor-default opacity-90"}
-                ${!playable && !faceDown ? "brightness-75" : ""}
+                ${playable ? `cursor-pointer ${palette.glow} brightness-110` : "cursor-default opacity-85 saturate-[0.8] grayscale-[0.2]"}
             `}
         >
-            {/* Playable ring highlight */}
+            {/* Playable Pulse Aura */}
             {playable && (
                 <motion.div
-                    className="absolute inset-0 rounded-xl border-2 border-white/50 pointer-events-none"
-                    animate={{ opacity: [0.3, 0.9, 0.3] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
+                    className="absolute inset-[-4px] rounded-[20px] border-2 border-white/40 pointer-events-none"
+                    animate={{ opacity: [0, 0.6, 0], scale: [1, 1.05, 1] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
                 />
             )}
 
-            {/* Card inner content */}
-            <div className="absolute inset-1.5 bg-white/15 rounded-lg border border-white/20 flex items-center justify-center">
-                <span className={`font-black text-center leading-tight whitespace-pre ${small ? "text-xs" : isActionCard ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl"} drop-shadow-md ${palette.text}`}>
-                    {label}
-                </span>
+            {/* Pattern Overlay */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pixel-weave.png')]" />
             </div>
 
-            {/* Corner pips */}
+            {/* Inner Recess */}
+            <div className={`absolute inset-2 rounded-xl border border-white/10 flex items-center justify-center overflow-hidden ${palette.inner}`}>
+                {/* Center Content */}
+                <div className={`flex items-center justify-center ${small ? "" : "w-12 h-12"}`}>
+                    {typeof label === 'string' ? (
+                        <span className={`font-black tracking-tighter drop-shadow-lg ${palette.text} ${small ? "text-xl" : "text-5xl"}`}>
+                            {label}
+                        </span>
+                    ) : (
+                        <div className={`${palette.text} ${small ? "w-6 h-6" : "w-12 h-12"}`}>
+                            {label}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Corner Pips */}
             {!small && (
                 <>
-                    <span className={`absolute top-1 left-1.5 text-xs font-black ${palette.text} leading-none`}>{label?.split('\n')[0]}</span>
-                    <span className={`absolute bottom-1 right-1.5 text-xs font-black ${palette.text} rotate-180 leading-none`}>{label?.split('\n')[0]}</span>
+                    <div className={`absolute top-1.5 left-2 text-[10px] font-black uppercase flex flex-col items-center ${palette.text}`}>
+                        <div className="w-5 h-5 flex items-center justify-center">{label}</div>
+                    </div>
+                    <div className={`absolute bottom-1.5 right-2 text-[10px] font-black uppercase flex flex-col items-center rotate-180 ${palette.text}`}>
+                        <div className="w-5 h-5 flex items-center justify-center">{label}</div>
+                    </div>
                 </>
             )}
 
-            {/* Shine overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none rounded-xl" />
+            {/* Glass Shine */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/30 pointer-events-none" />
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-white/40 rounded-t-2xl" />
         </motion.div>
     );
 }
@@ -122,15 +178,15 @@ export default function UnoCard({ card, faceDown = false, playable = false, onCl
 // Color dot badge (for current color indicator)
 export function ColorIndicator({ color, size = 10 }) {
     const colors = {
-        red: "bg-red-500 shadow-red-500/50",
-        blue: "bg-blue-500 shadow-blue-500/50",
-        green: "bg-green-500 shadow-green-500/50",
-        yellow: "bg-yellow-400 shadow-yellow-400/50",
+        red: "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]",
+        blue: "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]",
+        green: "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]",
+        yellow: "bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.8)]",
         wild: "bg-gradient-to-br from-red-500 via-yellow-400 to-blue-500 shadow-white/30",
     };
     return (
         <div
-            className={`rounded-full shadow-lg ${colors[color] || colors.wild}`}
+            className={`rounded-full transition-all duration-300 ${colors[color] || colors.wild}`}
             style={{ width: size, height: size }}
         />
     );

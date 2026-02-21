@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSocket } from "../../context/SocketContext";
 import { useAuth } from "../../context/AuthContext";
+import { useVoice } from "../../context/VoiceContext";
 import { motion, AnimatePresence } from "framer-motion";
 import UnoCard, { ColorIndicator } from "./UnoCard";
 import UnoWinnerModal from "./UnoWinnerModal";
@@ -9,143 +10,147 @@ import UnoWinnerModal from "./UnoWinnerModal";
 // ─── Color Picker Modal ───────────────────────────────────────────────────────
 const COLORS = ['red', 'blue', 'green', 'yellow'];
 const COLOR_CLASSES = {
-    red: 'bg-red-600 hover:bg-red-500 shadow-red-500/50',
-    blue: 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/50',
-    green: 'bg-green-600 hover:bg-green-500 shadow-green-500/50',
-    yellow: 'bg-yellow-500 hover:bg-yellow-400 shadow-yellow-500/50',
+    red: 'bg-gradient-to-br from-red-500 to-red-700 shadow-red-500/40',
+    blue: 'bg-gradient-to-br from-blue-500 to-blue-700 shadow-blue-500/40',
+    green: 'bg-gradient-to-br from-green-500 to-green-700 shadow-green-500/40',
+    yellow: 'bg-gradient-to-br from-yellow-400 to-yellow-600 shadow-yellow-500/40',
 };
-const COLOR_ICONS = { red: '❤️', blue: '💙', green: '💚', yellow: '💛' };
+const COLOR_LABELS = { red: 'Royal Red', blue: 'Azure Blue', green: 'Emerald Green', yellow: 'Golden Sun' };
 
 function ColorPicker({ onChoose }) {
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl"
         >
-            <div className="bg-black/90 border border-white/10 rounded-3xl p-10 text-center shadow-2xl">
-                <h3 className="text-2xl font-bold text-white mb-2 font-serif">Choose a Color</h3>
-                <p className="text-gray-400 text-sm font-sans mb-8 tracking-widest uppercase">Your wild card awaits</p>
-                <div className="grid grid-cols-2 gap-5">
+            <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="bg-[#111] border border-white/10 rounded-[40px] p-12 text-center shadow-[0_40px_100px_rgba(0,0,0,0.8)] max-w-md w-full relative"
+            >
+                <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                <h3 className="text-4xl font-black text-white mb-2 tracking-tighter">CHOOSE DESTINY</h3>
+                <p className="text-white/30 text-[10px] font-black uppercase tracking-[0.4em] mb-10">Select the next house color</p>
+
+                <div className="grid grid-cols-2 gap-6">
                     {COLORS.map(c => (
                         <motion.button
                             key={c}
-                            whileHover={{ scale: 1.1 }}
+                            whileHover={{ scale: 1.05, y: -5 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => onChoose(c)}
-                            className={`w-24 h-24 rounded-2xl ${COLOR_CLASSES[c]} shadow-lg flex flex-col items-center justify-center gap-2 font-bold uppercase tracking-wider text-white text-sm transition-all`}
+                            className={`group relative h-32 rounded-3xl ${COLOR_CLASSES[c]} border border-white/20 flex flex-col items-center justify-center gap-2 p-4 transition-all overflow-hidden`}
                         >
-                            <span className="text-3xl">{COLOR_ICONS[c]}</span>
-                            {c}
+                            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="w-12 h-12 rounded-full bg-white/20 border border-white/40 mb-1" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90">{COLOR_LABELS[c]}</span>
                         </motion.button>
                     ))}
                 </div>
-            </div>
+            </motion.div>
         </motion.div>
     );
 }
 
-// ─── Opponent Display (top / sides) ──────────────────────────────────────────
+// ─── Opponent Display ────────────────────────────────────────────────────────
 function OpponentZone({ player, isTurn, position = 'top' }) {
-    const isTop = position === 'top';
-    const isLeft = position === 'left';
-    const isRight = position === 'right';
+    const { streams, isSpeaking } = useVoice();
+    const speaking = isSpeaking[player.peerId];
+    const hasVoice = streams[player.peerId];
 
-    // Fan of face-down cards
     const cardCount = player.handCount || 0;
-    const maxDisplay = Math.min(cardCount, 7);
+    const maxDisplay = Math.min(cardCount, 8);
     const angles = Array.from({ length: maxDisplay }, (_, i) => {
-        const range = Math.min((maxDisplay - 1) * 10, 50);
-        return -range / 2 + (i / Math.max(maxDisplay - 1, 1)) * range;
+        const span = Math.min((maxDisplay - 1) * 8, 40);
+        return -span / 2 + (i / Math.max(maxDisplay - 1, 1)) * span;
     });
 
     return (
-        <div className={`flex flex-col items-center gap-2 ${isLeft || isRight ? 'flex-col' : ''}`}>
-            {/* Avatar + Name */}
-            <div className={`flex items-center gap-2 ${isTurn ? 'text-yellow-400' : 'text-gray-400'}`}>
-                <motion.div
-                    className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-xl ${isTurn ? 'border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.5)]' : 'border-white/10'}`}
-                    animate={isTurn ? { scale: [1, 1.1, 1] } : {}}
-                    transition={{ repeat: Infinity, duration: 1 }}
-                >
-                    {player.avatar}
-                </motion.div>
-                <div className="text-center">
-                    <div className="text-xs font-bold truncate max-w-[80px]">{player.username}</div>
-                    <div className="text-[10px] font-sans uppercase tracking-wider text-gray-500">{cardCount} cards</div>
+        <div className="flex flex-col items-center gap-4">
+            {/* Premium Profile Card */}
+            <motion.div
+                animate={isTurn ? { y: [0, -5, 0] } : {}}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className={`relative flex items-center gap-4 bg-white/[0.03] backdrop-blur-md border ${isTurn ? 'border-amber-500/50 shadow-[0_10px_30px_rgba(245,158,11,0.2)]' : 'border-white/5'} rounded-2xl p-3 pr-6 transition-all`}
+            >
+                <div className="relative">
+                    <div className="w-12 h-12 rounded-full border-2 border-white/10 bg-black flex items-center justify-center text-2xl z-10 relative">
+                        {player.avatar}
+                    </div>
+                    {isTurn && (
+                        <motion.div
+                            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                            transition={{ repeat: Infinity, duration: 1.5 }}
+                            className="absolute inset-0 bg-amber-500 rounded-full blur-md -z-1"
+                        />
+                    )}
+                    {speaking && (
+                        <motion.div
+                            animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.8, 0.4] }}
+                            transition={{ repeat: Infinity, duration: 1 }}
+                            className="absolute -inset-1 border-2 border-green-500 rounded-full z-0"
+                        />
+                    )}
+                    {hasVoice && (
+                        <div className="absolute -bottom-1 -left-1 bg-green-500 rounded-full w-4 h-4 flex items-center justify-center text-[8px] border border-black z-20">
+                            🎙️
+                        </div>
+                    )}
                 </div>
-                {isTurn && (
-                    <motion.div
-                        animate={{ opacity: [0, 1, 0] }}
-                        transition={{ repeat: Infinity, duration: 1 }}
-                        className="text-yellow-400 text-xs font-sans font-bold"
-                    >●</motion.div>
-                )}
-            </div>
+                <div>
+                    <div className="text-sm font-black text-white/90 tracking-tight">{player.username}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <div className="h-1 w-12 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-red-500" style={{ width: `${(cardCount / 15) * 100}%` }} />
+                        </div>
+                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">{cardCount} Cards</span>
+                    </div>
+                </div>
+            </motion.div>
 
-            {/* Face-down card fan */}
-            <div className="relative flex items-center justify-center" style={{ height: 56, width: Math.max(maxDisplay, 1) * 14 + 40 }}>
-                {Array.from({ length: maxDisplay }).map((_, i) => (
-                    <motion.div
-                        key={i}
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        className="absolute"
-                        style={{ rotate: angles[i] || 0, left: i * 14, transformOrigin: 'bottom center' }}
-                    >
-                        <UnoCard card={{ color: 'wild' }} faceDown small />
-                    </motion.div>
-                ))}
+            {/* Floating Card Fan */}
+            <div className="relative h-12 flex justify-center items-end" style={{ width: 140 }}>
+                <AnimatePresence>
+                    {Array.from({ length: maxDisplay }).map((_, i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ opacity: 0, scale: 0.5, y: 10 }}
+                            animate={{ opacity: 1, scale: 0.7, y: 0 }}
+                            className="absolute bottom-0"
+                            style={{
+                                rotate: angles[i],
+                                x: (i - (maxDisplay - 1) / 2) * 10,
+                                transformOrigin: 'bottom center',
+                                zIndex: i
+                            }}
+                        >
+                            <UnoCard card={{ color: 'wild' }} faceDown small />
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
             </div>
         </div>
-    );
-}
-
-// ─── UNO Button ──────────────────────────────────────────────────────────────
-function UnoButton({ onSayUno, disabled }) {
-    const [clicked, setClicked] = useState(false);
-    const handleClick = () => {
-        if (disabled) return;
-        setClicked(true);
-        onSayUno();
-        setTimeout(() => setClicked(false), 1500);
-    };
-    return (
-        <motion.button
-            onClick={handleClick}
-            whileHover={!disabled ? { scale: 1.1, rotate: [-2, 2, -2, 0] } : {}}
-            whileTap={!disabled ? { scale: 0.9 } : {}}
-            disabled={disabled}
-            className={`relative w-20 h-12 rounded-2xl font-black text-xl tracking-tighter shadow-2xl transition-all
-                ${clicked ? 'bg-green-500 shadow-green-500/50' : 'bg-gradient-to-br from-red-600 to-red-800 shadow-red-500/40'}
-                ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:shadow-[0_0_25px_rgba(239,68,68,0.6)]'}
-                border-2 ${clicked ? 'border-green-300' : 'border-red-400/60'}
-            `}
-        >
-            <span className="relative text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-                {clicked ? '✓' : 'UNO!'}
-            </span>
-        </motion.button>
     );
 }
 
 // ─── Floating Toast notification ──────────────────────────────────────────────
 function Toast({ message, color = 'yellow' }) {
     const colors = {
-        yellow: 'bg-yellow-900/80 border-yellow-500/50 text-yellow-100',
-        red: 'bg-red-900/80 border-red-500/50 text-red-100',
-        green: 'bg-green-900/80 border-green-500/50 text-green-100',
-        blue: 'bg-blue-900/80 border-blue-500/50 text-blue-100',
+        yellow: 'from-amber-500/20 to-transparent border-amber-500/30 text-amber-200',
+        red: 'from-red-600/20 to-transparent border-red-500/30 text-red-200',
+        green: 'from-green-600/20 to-transparent border-green-500/30 text-green-200',
+        blue: 'from-blue-600/20 to-transparent border-blue-500/30 text-blue-200',
     };
     return (
         <motion.div
-            initial={{ opacity: 0, y: -30, scale: 0.8 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-2xl border backdrop-blur-sm font-serif text-lg font-bold shadow-xl ${colors[color]}`}
+            initial={{ opacity: 0, x: 50, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9, x: 20 }}
+            className={`flex items-center gap-3 px-6 py-4 rounded-2xl border-l-4 bg-gradient-to-r backdrop-blur-xl font-black text-sm uppercase tracking-widest shadow-2xl ${colors[color]}`}
         >
+            <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
             {message}
         </motion.div>
     );
@@ -155,6 +160,7 @@ function Toast({ message, color = 'yellow' }) {
 export default function UnoGameBoard() {
     const { lobbyId } = useParams();
     const { user } = useAuth();
+    const { isMuted, toggleMute, isSpeaking, isSpeakerEnabled, toggleSpeaker, repairAudio } = useVoice();
     const socket = useSocket();
     const navigate = useNavigate();
 
@@ -178,7 +184,7 @@ export default function UnoGameBoard() {
     const addToast = useCallback((message, color = 'yellow') => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, message, color }]);
-        setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+        setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
     }, []);
 
     const applyState = useCallback((state) => {
@@ -190,7 +196,6 @@ export default function UnoGameBoard() {
         setDrawAccumulator(state.drawAccumulator || 0);
         setPlayers(state.players || []);
 
-        // Find myIndex
         const idx = (state.players || []).findIndex(p => p.username === user.username);
         setMyIndex(idx);
         setMyTurn(idx === state.turnIndex);
@@ -198,11 +203,7 @@ export default function UnoGameBoard() {
 
     useEffect(() => {
         if (!socket || !lobbyId) return;
-
         socket.on('uno:gameStateUpdate', applyState);
-
-        // Request current state immediately in case we missed the initial broadcast
-        // (race condition: server emits state before client finishes navigating)
         socket.emit('uno:requestGameState', { lobbyId });
 
         socket.on('uno:cardPlayed', ({ card, currentColor: cc, drawAccumulator: da }) => {
@@ -211,34 +212,15 @@ export default function UnoGameBoard() {
             setDrawAccumulator(da || 0);
         });
 
-        socket.on('uno:chooseColor', () => {
-            setShowColorPicker(true);
-        });
-
-        socket.on('uno:gameOver', ({ winner: w }) => {
-            setWinner(w);
-        });
-
-        socket.on('uno:unoCalled', ({ username }) => {
-            addToast(`🔔 ${username} says UNO!`, 'red');
-        });
-
-        socket.on('uno:unoPenalty', ({ username, penaltyCards }) => {
-            addToast(`⚠️ ${username} forgot UNO! +${penaltyCards} cards`, 'red');
-        });
-
+        socket.on('uno:chooseColor', () => setShowColorPicker(true));
+        socket.on('uno:gameOver', ({ winner: w }) => setWinner(w));
+        socket.on('uno:unoCalled', ({ username }) => addToast(`🔔 ${username} declares UNO!`, 'red'));
+        socket.on('uno:unoPenalty', ({ username, penaltyCards }) => addToast(`⚠️ ${username} forgot! +${penaltyCards} cards`, 'red'));
         socket.on('uno:challengeResult', ({ success, challenger, target }) => {
-            if (success) {
-                addToast(`⚡ ${challenger} challenged ${target} — SUCCESS! ${target} draws 4`, 'green');
-            } else {
-                addToast(`⚡ ${challenger} challenged ${target} — FAILED! ${challenger} draws 6`, 'red');
-            }
+            if (success) addToast(`⚡ CHALLENGE SUCCESS! ${target} draws 4`, 'green');
+            else addToast(`⚡ CHALLENGE FAILED! ${challenger} draws 6`, 'red');
         });
-
-        socket.on('uno:playerFinished', ({ username }) => {
-            addToast(`🎉 ${username} is out! (winner)`, 'green');
-        });
-
+        socket.on('uno:playerFinished', ({ username }) => addToast(`🏆 ${username} has finished!`, 'green'));
         socket.on('uno:error', (err) => addToast(`⛔ ${err}`, 'red'));
 
         return () => {
@@ -254,18 +236,14 @@ export default function UnoGameBoard() {
         };
     }, [socket, lobbyId, applyState, addToast]);
 
-    // ── Determine playable cards ──
     const playableCardIds = React.useMemo(() => {
         if (!myTurn || !topCard) return new Set();
         const s = new Set();
-
-        // If draw accumulator is active, can only stack same type
         if (drawAccumulator > 0) {
             const stackType = topCard.type === 'draw2' ? 'draw2' : 'wild4';
             myHand.forEach(c => { if (c.type === stackType) s.add(c.id); });
             return s;
         }
-
         myHand.forEach(c => {
             if (c.type === 'wild' || c.type === 'wild4') { s.add(c.id); return; }
             if (c.color === currentColor) { s.add(c.id); return; }
@@ -295,130 +273,138 @@ export default function UnoGameBoard() {
         }
     };
 
-    const handleDraw = () => {
-        if (!myTurn) return;
-        socket.emit('uno:drawCard', { lobbyId });
-    };
-
-    const handleSayUno = () => {
-        setMySaidUno(true);
-        socket.emit('uno:sayUno', { lobbyId });
-    };
-
-    const handleChallengeUno = (targetId) => {
-        socket.emit('uno:challengeUno', { lobbyId, targetId });
-    };
-
-    const handleChallengWD4 = () => {
-        socket.emit('uno:challengeWildFour', { lobbyId });
-    };
-
-    if (!gameState) {
-        return (
-            <div className="min-h-screen bg-plush flex items-center justify-center">
-                <div className="text-amber-100/60 font-serif text-xl animate-pulse">Dealing cards...</div>
+    if (!gameState) return (
+        <div className="min-h-screen bg-[#070505] flex items-center justify-center">
+            <div className="flex flex-col items-center gap-6">
+                <div className="w-16 h-16 border-4 border-red-500/20 border-t-red-600 rounded-full animate-spin" />
+                <div className="text-white/20 font-black text-xs uppercase tracking-[0.5em] animate-pulse">Initializing Table</div>
             </div>
-        );
-    }
+        </div>
+    );
 
-    // ── Organize opponents around the table ──
     const me = players[myIndex];
     const opponents = players.filter((_, i) => i !== myIndex);
-
-    // Layout: top up to 2, left/right for more
-    const topOpponents = opponents.slice(0, Math.min(opponents.length, 2));
-    const bottomOpponents = opponents.slice(2);
-
-    const colorGlow = {
-        red: 'shadow-[0_0_60px_rgba(239,68,68,0.25)]',
-        blue: 'shadow-[0_0_60px_rgba(59,130,246,0.25)]',
-        green: 'shadow-[0_0_60px_rgba(34,197,94,0.25)]',
-        yellow: 'shadow-[0_0_60px_rgba(234,179,8,0.25)]',
-        wild: 'shadow-[0_0_60px_rgba(255,255,255,0.1)]',
+    const colorColors = {
+        red: 'bg-red-600 shadow-[0_0_100px_#dc262688]',
+        blue: 'bg-blue-600 shadow-[0_0_100px_#2563eb88]',
+        green: 'bg-green-600 shadow-[0_0_100px_#16a34a88]',
+        yellow: 'bg-yellow-400 shadow-[0_0_100px_#facc1588]',
+        wild: 'bg-white/10 shadow-[0_0_100px_white]'
     };
 
     return (
-        <div className="min-h-screen bg-plush text-amber-50 font-serif flex flex-col relative overflow-hidden">
-            {/* Toast notifications */}
-            <AnimatePresence>
-                {toasts.map(t => <Toast key={t.id} message={t.message} color={t.color} />)}
-            </AnimatePresence>
+        <div className="min-h-screen bg-[#070505] text-white font-sans flex flex-col relative overflow-hidden perspective-1000">
+            {/* Dynamic Background Lighting */}
+            <div className="absolute inset-0 pointer-events-none transition-all duration-1000">
+                <div className={`absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full opacity-20 blur-[150px] ${colorColors[currentColor]}`} />
+                <div className={`absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full opacity-20 blur-[150px] ${colorColors[currentColor]}`} />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black" />
+            </div>
 
-            {/* Color Picker Modal */}
+            {/* Notifications */}
+            <div className="fixed top-10 right-10 z-[100] flex flex-col gap-4">
+                <AnimatePresence>
+                    {toasts.map(t => <Toast key={t.id} message={t.message} color={t.color} />)}
+                </AnimatePresence>
+            </div>
+
+            {/* Modals */}
             <AnimatePresence>
                 {showColorPicker && <ColorPicker onChoose={handleColorChosen} />}
             </AnimatePresence>
-
-            {/* Winner Modal */}
             {winner && <UnoWinnerModal winner={winner} onClose={() => navigate('/dashboard')} />}
 
-            {/* Background */}
-            <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
-                <div className={`absolute inset-0 opacity-50 transition-all duration-700 ${colorGlow[currentColor] || ''}`} />
-                <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "radial-gradient(circle, #ffffff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
-            </div>
-
-            {/* ── Header Bar ── */}
-            <div className="relative z-10 flex items-center justify-between px-4 sm:px-8 py-4 bg-black/40 backdrop-blur-md border-b border-white/5">
-                <div className="flex items-center gap-3">
-                    <div className="flex gap-1">
-                        {['red', 'blue', 'green', 'yellow'].map(c => (
-                            <div key={c} className={`w-2 h-6 rounded-sm ${c === 'red' ? 'bg-red-500' : c === 'blue' ? 'bg-blue-500' : c === 'green' ? 'bg-green-500' : 'bg-yellow-400'}`} />
-                        ))}
+            {/* ── Header ── */}
+            <div className="relative z-50 flex items-center justify-between px-10 py-6 bg-white/[0.02] backdrop-blur-xl border-b border-white/5">
+                <div className="flex items-center gap-6">
+                    <h1 className="text-4xl font-black tracking-tighter leading-none flex items-center">
+                        <span className="text-red-600 drop-shadow-[0_2px_8px_#ef444466]">U</span>
+                        <span className="text-blue-600 mx-[-0.05em] drop-shadow-[0_2px_8px_#2563eb66]">N</span>
+                        <span className="text-green-600 drop-shadow-[0_2px_8px_#16a34a66]">O</span>
+                    </h1>
+                    <div className="h-4 w-[1px] bg-white/10" />
+                    <div className="flex items-center gap-3">
+                        <ColorIndicator color={currentColor} size={14} />
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">{currentColor} Realm</span>
                     </div>
-                    <span className="font-black text-2xl tracking-tight">
-                        <span className="text-red-500">U</span><span className="text-blue-500">N</span><span className="text-green-500">O</span>
-                    </span>
                 </div>
 
-                {/* Turn indicator */}
-                <div className="text-center">
+                <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
+                    <div className="text-[8px] font-black uppercase tracking-[0.5em] text-white/20 mb-1">Active Realm</div>
                     {myTurn ? (
                         <motion.div
-                            animate={{ scale: [1, 1.05, 1] }}
-                            transition={{ repeat: Infinity, duration: 1 }}
-                            className="text-yellow-400 font-bold text-sm font-sans uppercase tracking-widest"
+                            animate={{ opacity: [0.5, 1, 0.5] }}
+                            transition={{ repeat: Infinity, duration: 2 }}
+                            className="bg-amber-500 text-black px-6 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.3em] shadow-[0_0_20px_#f59e0b66]"
                         >
-                            ⚡ Your Turn
+                            Your Command
                         </motion.div>
                     ) : (
-                        <div className="text-gray-400 text-xs font-sans uppercase tracking-widest">
-                            {players[gameState.turnIndex]?.username}'s turn
+                        <div className="text-white/60 font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                            <div className="w-1 h-1 rounded-full bg-red-600" />
+                            {players[gameState.turnIndex]?.username}'s Strategem
                         </div>
                     )}
                 </div>
 
-                {/* Current color + direction */}
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        <ColorIndicator color={currentColor} size={16} />
-                        <span className="text-xs font-sans uppercase tracking-widest text-gray-400">{currentColor}</span>
+                <div className="flex items-center gap-8">
+                    <div className="flex flex-col items-end">
+                        <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20">Flow Direction</span>
+                        <span className="text-xl leading-none text-white/80">{gameState.direction === 1 ? '↻' : '↺'}</span>
                     </div>
-                    <div className="text-xl" title="Direction">{gameState.direction === 1 ? '→' : '←'}</div>
                     {drawAccumulator > 0 && (
-                        <div className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-lg font-sans animate-pulse">
-                            +{drawAccumulator} PENDING
+                        <div className="bg-red-600 text-white text-[10px] font-black px-3 py-1.5 rounded-xl border border-white/20 shadow-[0_0_20px_#ef444466] animate-bounce">
+                            +{drawAccumulator} CARDS STACKED
                         </div>
                     )}
+                    <button
+                        onClick={repairAudio}
+                        className="bg-white/5 hover:bg-white/10 text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-white/10 transition-all opacity-40 hover:opacity-100"
+                    >
+                        Repair Audio
+                    </button>
+                    <button
+                        onClick={toggleMute}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm transition-all shadow-lg hover:scale-110 active:scale-95 border ${isMuted ? 'bg-red-600/40 border-red-500/50 text-white' : 'bg-green-600/40 border-green-500/50 text-white'}`}
+                        title={isMuted ? "Unmute Mic" : "Mute Mic"}
+                    >
+                        {isMuted ? '🔇' : '🎙️'}
+                    </button>
+                    <button
+                        onClick={toggleSpeaker}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm transition-all shadow-lg hover:scale-110 active:scale-95 border ${!isSpeakerEnabled ? 'bg-red-600/40 border-red-500/50 text-white' : 'bg-blue-600/40 border-blue-500/50 text-white'}`}
+                        title={isSpeakerEnabled ? "Disable Speaker" : "Enable Speaker"}
+                    >
+                        {isSpeakerEnabled ? '🔊' : '🔇'}
+                    </button>
                 </div>
             </div>
 
-            {/* ── Main Table Area ── */}
-            <div className="relative z-10 flex-1 flex flex-col items-center justify-between px-4 py-4 gap-3">
+            {/* ── Immersive Table ── */}
+            <div className="relative flex-1 flex flex-col items-center justify-between p-8 pt-12 overflow-hidden">
 
-                {/* Opponents - Top */}
-                <div className="flex gap-6 sm:gap-10 justify-center flex-wrap w-full">
-                    {topOpponents.map((p, i) => (
+                {/* 3D Felt Table Base */}
+                <div
+                    className="absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[160%] aspect-[2/1] bg-[#0c1a0c] rounded-[50%] blur-[2px] opacity-80"
+                    style={{
+                        transform: 'translateX(-50%) translateY(-50%) perspective(1000px) rotateX(60deg)',
+                        boxShadow: 'inset 0 0 100px rgba(0,0,0,0.8), 0 50px 150px rgba(0,0,0,0.9)'
+                    }}
+                >
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/felt.png')] opacity-40 mix-blend-overlay" />
+                    <div className="absolute inset-0 rounded-[50%] border-[20px] border-white/5 opacity-20" />
+                </div>
+
+                {/* Opponents Row */}
+                <div className="relative z-10 flex gap-12 sm:gap-24 justify-center w-full">
+                    {opponents.map((p, i) => (
                         <div key={p.username} className="relative">
-                            <OpponentZone player={p} isTurn={players.indexOf(p) === gameState.turnIndex} position="top" />
-                            {/* Challenge UNO button */}
+                            <OpponentZone player={p} isTurn={players.indexOf(p) === gameState.turnIndex} />
                             {p.handCount === 1 && !p.saidUno && (
                                 <motion.button
-                                    animate={{ scale: [1, 1.1, 1] }}
-                                    transition={{ repeat: Infinity, duration: 0.8 }}
-                                    onClick={() => handleChallengeUno(p.id)}
-                                    className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg hover:bg-red-500 transition-colors font-sans"
+                                    whileHover={{ scale: 1.1 }}
+                                    onClick={() => socket.emit('uno:challengeUno', { lobbyId, targetId: p.id })}
+                                    className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black px-4 py-2 rounded-2xl shadow-xl z-50 border border-white/20 uppercase tracking-widest"
                                 >
                                     CATCH!
                                 </motion.button>
@@ -427,127 +413,123 @@ export default function UnoGameBoard() {
                     ))}
                 </div>
 
-                {/* Center Table */}
-                <div className="flex-1 flex items-center justify-center gap-6 sm:gap-10 w-full">
+                {/* Center Cluster */}
+                <div className="relative z-10 flex-1 flex items-center justify-center gap-20 w-full mb-10">
                     {/* Draw Pile */}
-                    <div className="relative flex flex-col items-center gap-2">
+                    <div className="relative group">
                         <motion.div
-                            onClick={myTurn ? handleDraw : undefined}
-                            whileHover={myTurn ? { scale: 1.05, rotate: -3 } : {}}
-                            whileTap={myTurn ? { scale: 0.95 } : {}}
-                            className={`relative cursor-${myTurn ? 'pointer' : 'default'}`}
+                            onClick={myTurn ? () => socket.emit('uno:drawCard', { lobbyId }) : undefined}
+                            whileHover={myTurn ? { rotateX: -10, rotateY: -10, scale: 1.05 } : {}}
+                            className={`relative ${myTurn ? 'cursor-pointer' : 'cursor-not-allowed opacity-80'}`}
+                            style={{ perspective: '1000px' }}
                         >
-                            {/* Stack illusion */}
-                            <div className="absolute top-1 left-1 w-20 h-28 sm:w-24 sm:h-32 bg-gray-800 rounded-xl border border-gray-700" />
-                            <div className="absolute top-0.5 left-0.5 w-20 h-28 sm:w-24 sm:h-32 bg-gray-900 rounded-xl border border-gray-700" />
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className="absolute inset-0 bg-[#111] rounded-2xl border border-white/5" style={{ transform: `translateZ(${-i * 2}px) translateY(${-i * 1}px)` }} />
+                            ))}
                             <UnoCard card={{ color: 'wild' }} faceDown playable={myTurn} />
+
                             {myTurn && drawAccumulator > 0 && (
-                                <motion.div
-                                    animate={{ scale: [1, 1.2, 1] }}
-                                    transition={{ repeat: Infinity, duration: 0.7 }}
-                                    className="absolute -top-3 -right-3 bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold font-sans border-2 border-red-400 shadow-lg"
-                                >
+                                <div className="absolute -top-4 -right-4 bg-red-600 w-10 h-10 rounded-full flex items-center justify-center font-black text-sm border-2 border-white/50 shadow-2xl z-50 animate-bounce">
                                     +{drawAccumulator}
-                                </motion.div>
+                                </div>
                             )}
                         </motion.div>
-                        <span className="text-xs text-gray-500 font-sans">{drawPileCount} cards</span>
-                        {myTurn && drawAccumulator === 0 && (
-                            <span className="text-xs text-yellow-500/60 font-sans animate-pulse">tap to draw</span>
-                        )}
-                        {myTurn && drawAccumulator > 0 && (
-                            <span className="text-xs text-red-400 font-sans animate-pulse">draw {drawAccumulator}!</span>
-                        )}
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 text-center mt-6">{drawPileCount} Deck Pool</div>
                     </div>
 
-                    {/* Current Top Card */}
-                    <div className="flex flex-col items-center gap-3">
-                        {/* Color halo */}
-                        <div className="relative">
-                            <AnimatePresence mode="wait">
-                                {topCard && (
-                                    <motion.div
-                                        key={topCard.id}
-                                        initial={{ scale: 0.3, rotate: -180, opacity: 0, y: -50 }}
-                                        animate={{ scale: 1, rotate: 0, opacity: 1, y: 0 }}
-                                        exit={{ scale: 0.5, opacity: 0 }}
-                                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                                    >
-                                        <UnoCard card={topCard} />
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <ColorIndicator color={currentColor} size={12} />
-                            <span className="text-xs font-sans uppercase tracking-widest text-gray-400">{currentColor} active</span>
-                        </div>
-
-                        {/* WD4 Challenge button (show if top card is wild4 and it's my turn) */}
-                        {topCard?.type === 'wild4' && myTurn && (
-                            <motion.button
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                onClick={handleChallengWD4}
-                                className="text-xs bg-orange-600/80 hover:bg-orange-500 text-white px-3 py-1 rounded-lg font-sans font-bold uppercase tracking-wider border border-orange-400/50 transition-colors"
-                            >
-                                Challenge +4
-                            </motion.button>
-                        )}
+                    {/* Discard Pile */}
+                    <div className="relative">
+                        <div className="absolute inset-0 bg-white/5 blur-3xl rounded-full scale-150 opacity-40" />
+                        <AnimatePresence mode="wait">
+                            {topCard && (
+                                <motion.div
+                                    key={topCard.id}
+                                    initial={{ scale: 0.2, rotate: -45, y: -200, opacity: 0 }}
+                                    animate={{ scale: 1, rotate: (Math.random() - 0.5) * 10, y: 0, opacity: 1 }}
+                                    transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                                    className="relative z-10"
+                                >
+                                    <UnoCard card={topCard} />
+                                    {topCard.type === 'wild4' && myTurn && (
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            onClick={() => socket.emit('uno:challengeWildFour', { lobbyId })}
+                                            className="absolute -bottom-12 left-1/2 -translate-x-1/2 whitespace-nowrap bg-blue-600 text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-2xl border border-white/20 shadow-xl"
+                                        >
+                                            Challenge WD4
+                                        </motion.button>
+                                    )}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 text-center mt-6">Current Focus</div>
                     </div>
                 </div>
 
-                {/* Bottom opponents if > 2 opponents */}
-                {bottomOpponents.length > 0 && (
-                    <div className="flex gap-6 justify-center">
-                        {bottomOpponents.map(p => (
-                            <OpponentZone key={p.username} player={p} isTurn={players.indexOf(p) === gameState.turnIndex} />
-                        ))}
-                    </div>
-                )}
+                {/* Player Interaction Area */}
+                <div className="relative z-20 w-full bg-gradient-to-t from-black via-black/80 to-transparent pt-12">
 
-                {/* ── Player Hand ── */}
-                <div className="w-full">
-                    {/* UNO button + Hand label row */}
-                    <div className="flex items-center justify-between px-2 mb-3">
-                        <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center ${myTurn ? 'border-yellow-400' : 'border-white/10'}`}>
-                                {me?.avatar || '🃏'}
+                    <div className="flex items-center justify-between px-16 mb-8">
+                        <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <div className="w-12 h-12 rounded-full border-2 border-white/10 bg-black flex items-center justify-center text-2xl">
+                                    {me?.avatar || '🃏'}
+                                </div>
+                                {isSpeaking['local'] && (
+                                    <motion.div
+                                        animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.8, 0.4] }}
+                                        transition={{ repeat: Infinity, duration: 1 }}
+                                        className="absolute -inset-1 border-2 border-green-500 rounded-full z-0"
+                                    />
+                                )}
                             </div>
                             <div>
-                                <span className="font-bold text-sm">{user.username}</span>
-                                <span className="text-gray-500 text-xs font-sans ml-2">({myHand.length} cards)</span>
+                                <div className="text-xl font-black tracking-tight">{user.username}</div>
+                                <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em]">Royal Deck • {myHand.length} Cards</div>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-6">
                             {myHand.length === 1 && (
-                                <UnoButton onSayUno={handleSayUno} disabled={mySaidUno} />
-                            )}
-                            {!myTurn && (
-                                <span className="text-xs text-gray-600 font-sans uppercase tracking-widest">Waiting...</span>
+                                <motion.button
+                                    whileHover={{ scale: 1.05, rotate: -2 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => { setMySaidUno(true); socket.emit('uno:sayUno', { lobbyId }); }}
+                                    disabled={mySaidUno}
+                                    className={`px-10 py-3 rounded-2xl font-black text-xl tracking-[0.3em] transition-all transform skew-x-[-10deg] ${mySaidUno ? 'bg-green-600 text-white opacity-50' : 'bg-red-600 text-white shadow-[0_10px_30px_#ef444488]'}`}
+                                >
+                                    {mySaidUno ? 'DECLARED' : 'UNO!'}
+                                </motion.button>
                             )}
                         </div>
                     </div>
 
-                    {/* Card Fan */}
-                    <div className="relative overflow-x-auto pb-2">
-                        <div className="flex items-end justify-center gap-1 sm:gap-1.5 min-w-max mx-auto px-4" style={{ minHeight: 140 }}>
+                    {/* Card Fan Container */}
+                    <div className="relative h-[220px] mb-[-40px]">
+                        <div className="flex items-end justify-center perspective-1000 -space-x-12">
                             <AnimatePresence>
                                 {myHand.map((card, i) => {
                                     const playable = playableCardIds.has(card.id);
-                                    const totalCards = myHand.length;
-                                    const angle = totalCards > 1 ? -15 + (30 / (totalCards - 1)) * i : 0;
-                                    const lift = totalCards > 1 ? -Math.abs(i - (totalCards - 1) / 2) * 2 : 0;
+                                    const total = myHand.length;
+                                    const spread = Math.min(60 / (total || 1), 6);
+                                    const angle = (i - (total - 1) / 2) * spread;
+                                    const yPos = Math.abs(i - (total - 1) / 2) * 4;
+
                                     return (
                                         <motion.div
                                             key={card.id}
                                             layout
-                                            initial={{ y: 80, opacity: 0, rotate: 0 }}
-                                            animate={{ y: lift, opacity: 1, rotate: angle }}
-                                            exit={{ y: -80, opacity: 0, scale: 0.5, rotate: angle * 3 }}
-                                            transition={{ type: "spring", stiffness: 300, damping: 25, delay: i * 0.03 }}
-                                            style={{ transformOrigin: 'bottom center', zIndex: playable ? myHand.length + 10 : i }}
+                                            initial={{ y: 200, opacity: 0 }}
+                                            animate={{
+                                                y: playable ? -20 : yPos,
+                                                opacity: 1,
+                                                rotate: angle,
+                                                z: playable ? 100 : 0
+                                            }}
+                                            exit={{ y: -300, scale: 0.5, opacity: 0 }}
+                                            transition={{ type: "spring", stiffness: 200, damping: 25 }}
+                                            className="relative"
+                                            style={{ filter: !playable && myTurn ? 'brightness(0.6) saturate(0.5)' : 'none' }}
                                         >
                                             <UnoCard
                                                 card={card}
@@ -560,18 +542,6 @@ export default function UnoGameBoard() {
                             </AnimatePresence>
                         </div>
                     </div>
-
-                    {/* Playability hint */}
-                    {myTurn && playableCardIds.size === 0 && drawAccumulator === 0 && (
-                        <p className="text-center text-yellow-500/60 text-xs font-sans mt-1 animate-pulse uppercase tracking-widest">
-                            No playable cards — tap the deck to draw
-                        </p>
-                    )}
-                    {myTurn && drawAccumulator > 0 && playableCardIds.size === 0 && (
-                        <p className="text-center text-red-400 text-xs font-sans mt-1 animate-pulse uppercase tracking-widest">
-                            No stackable card — tap the deck to draw {drawAccumulator}
-                        </p>
-                    )}
                 </div>
             </div>
         </div>

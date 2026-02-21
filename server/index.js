@@ -51,6 +51,12 @@ app.get('/api/leaderboard', async (req, res) => {
     res.json(top);
 });
 
+app.get('/api/user/:username', async (req, res) => {
+    const user = await getUser(req.params.username);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json(user);
+});
+
 // --- Socket.io for Real-Time Game ---
 
 io.on('connection', (socket) => {

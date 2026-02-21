@@ -103,6 +103,7 @@ function buildPrivateState(state, playerIndex) {
             username: p.username,
             avatar: p.avatar,
             isHost: p.isHost,
+            peerId: p.peerId,
             handCount: p.hand.length,
             finished: p.finished,
             saidUno: p.saidUno,
@@ -123,9 +124,9 @@ function broadcastState(io, lobby) {
 export function handleUnoEvents(io, socket) {
 
     // ── Create Lobby ──
-    socket.on('uno:createLobby', ({ username, avatar, maxPlayers }) => {
+    socket.on('uno:createLobby', ({ username, avatar, maxPlayers, peerId }) => {
         const lobbyId = 'UNO-' + nanoid();
-        const player = { id: socket.id, username, avatar: avatar || '🃏', isHost: true };
+        const player = { id: socket.id, username, avatar: avatar || '🃏', isHost: true, peerId };
 
         unoLobbies.set(lobbyId, {
             id: lobbyId,
@@ -142,7 +143,7 @@ export function handleUnoEvents(io, socket) {
     });
 
     // ── Join Lobby ──
-    socket.on('uno:joinLobby', ({ lobbyId, username, avatar }) => {
+    socket.on('uno:joinLobby', ({ lobbyId, username, avatar, peerId }) => {
         const lobby = unoLobbies.get(lobbyId);
         if (!lobby) {
             console.log(`[UNO] Join failed: lobby ${lobbyId} not found`);
@@ -150,13 +151,16 @@ export function handleUnoEvents(io, socket) {
         }
         if (lobby.status !== 'waiting') return socket.emit('uno:error', 'Game already in progress');
         if (lobby.players.length >= lobby.maxPlayers) return socket.emit('uno:error', 'Table is full');
-        // If this socket already joined (e.g. double-emit), just acknowledge
-        if (lobby.players.find(p => p.id === socket.id)) {
-            socket.emit('uno:playerJoined', { players: lobby.players });
+
+        // Prevent duplicate join
+        const existingPlayer = lobby.players.find(p => p.id === socket.id);
+        if (existingPlayer) {
+            existingPlayer.peerId = peerId;
+            io.to(lobbyId).emit('uno:playerJoined', { players: lobby.players });
             return;
         }
 
-        const player = { id: socket.id, username, avatar: avatar || '🃏', isHost: false };
+        const player = { id: socket.id, username, avatar: avatar || '🃏', isHost: false, peerId };
         lobby.players.push(player);
         socket.join(lobbyId);
         io.to(lobbyId).emit('uno:playerJoined', { players: lobby.players });
@@ -204,7 +208,11 @@ export function handleUnoEvents(io, socket) {
             hand: hands[i],
             finished: false,
             saidUno: false,
-            drawStack: 0, // pending draws from draw2/wild4 stacking
+            drawStack: 0,
+            sessionStats: {
+                cardsPlayed: 0, skipsUsed: 0, reversesUsed: 0,
+                drawsUsed: 0, wildsUsed: 0, successfulUnos: 0, failedUnos: 0
+            }
         }));
 
         const startTurnIndex = Math.floor(Math.random() * numPlayers);
@@ -296,6 +304,17 @@ export function handleUnoEvents(io, socket) {
             player.pendingUnoPenalty = false;
         }
 
+        // Update Stats
+        player.sessionStats.cardsPlayed += 1;
+        if (card.type === 'skip') player.sessionStats.skipsUsed += 1;
+        if (card.type === 'reverse') player.sessionStats.reversesUsed += 1;
+        if (card.type === 'draw2') player.sessionStats.drawsUsed += 1;
+        if (card.type === 'wild') player.sessionStats.wildsUsed += 1;
+        if (card.type === 'wild4') {
+            player.sessionStats.drawsUsed += 1;
+            player.sessionStats.wildsUsed += 1;
+        }
+
         // Put card on discard
         state.discardPile.push(card);
         state.lastPlayedCard = card;
@@ -371,6 +390,7 @@ export function handleUnoEvents(io, socket) {
 
         player.saidUno = true;
         player.pendingUnoPenalty = false;
+        player.sessionStats.successfulUnos += 1;
 
         io.to(lobbyId).emit('uno:unoCalled', { username: player.username });
     });
@@ -388,6 +408,7 @@ export function handleUnoEvents(io, socket) {
         const drawn = drawCards(state, 2);
         target.hand.push(...drawn);
         target.pendingUnoPenalty = false;
+        target.sessionStats.failedUnos += 1;
 
         broadcastState(io, lobby);
         io.to(lobbyId).emit('uno:unoPenalty', { username: target.username, penaltyCards: 2 });
@@ -467,7 +488,10 @@ function applyCardEffect(io, lobby, card, playerIdx, colorAlreadyResolved = fals
     if (player.hand.length === 0) {
         player.finished = true;
         player.saidUno = false;
-        updateUserStats(player.username, 'win').catch(() => { });
+        updateUserStats(player.username, 'win', {
+            game: 'uno',
+            sessionStats: player.sessionStats
+        }).catch(() => { });
 
         const active = state.players.filter(p => !p.finished);
         if (active.length === 1) {
@@ -475,7 +499,11 @@ function applyCardEffect(io, lobby, card, playerIdx, colorAlreadyResolved = fals
             active[0].finished = true;
             state.gameOver = true;
             lobby.status = 'finished';
-            updateUserStats(active[0].username, 'loss').catch(() => { });
+            updateUserStats(active[0].username, 'loss', {
+                game: 'uno',
+                sessionStats: active[0].sessionStats,
+                winner: player.username
+            }).catch(() => { });
 
             broadcastState(io, lobby);
             io.to(lobbyId).emit('uno:gameOver', {

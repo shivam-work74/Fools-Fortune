@@ -1,21 +1,147 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
-import { motion } from "framer-motion";
+import { useVoice } from "../context/VoiceContext";
+import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_SERVER_URL || (import.meta.env.DEV ? "http://localhost:3001" : "");
 
+// ─── Sub-Components for Analytics ─────────────────────────────────────────────
+
+function SkillMeter({ rating }) {
+    const percentage = Math.min((rating / 2500) * 100, 100);
+    const getRank = (r) => {
+        if (r < 1100) return { label: "Novice", color: "text-gray-400", bg: "bg-gray-400" };
+        if (r < 1300) return { label: "Strategist", color: "text-blue-400", bg: "bg-blue-400" };
+        if (r < 1600) return { label: "Elite", color: "text-purple-400", bg: "bg-purple-400" };
+        return { label: "Grandmaster", color: "text-amber-400", bg: "bg-amber-400" };
+    };
+    const rank = getRank(rating);
+
+    return (
+        <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-6 backdrop-blur-md">
+            <div className="flex justify-between items-end mb-4">
+                <div>
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-white/40 block mb-1">Potential Score</span>
+                    <span className="text-4xl font-black text-white tracking-tighter">{rating} <span className="text-sm text-white/20 font-medium">MMR</span></span>
+                </div>
+                <div className="text-right">
+                    <span className={`text-sm font-black uppercase tracking-widest ${rank.color}`}>{rank.label}</span>
+                </div>
+            </div>
+            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden relative">
+                <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${percentage}%` }}
+                    className={`h-full ${rank.bg} shadow-[0_0_15px_rgba(255,255,255,0.2)]`}
+                />
+            </div>
+            <p className="text-[9px] text-white/20 mt-3 uppercase tracking-wider font-medium">Rank resets in 14 days • Keep playing to analyze growth</p>
+        </div>
+    );
+}
+
+function StrategyHeatmap({ unoStats }) {
+    if (!unoStats) return null;
+    const items = [
+        { label: "Tactical Skips", value: unoStats.skipsUsed, color: "bg-blue-500" },
+        { label: "Reversals", value: unoStats.reversesUsed, color: "bg-purple-500" },
+        { label: "Draw Power", value: unoStats.drawsUsed, color: "bg-red-500" },
+        { label: "Wild Influence", value: unoStats.wildsUsed, color: "bg-amber-500" },
+    ];
+    const max = Math.max(...items.map(i => i.value), 1);
+
+    return (
+        <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-6 backdrop-blur-md">
+            <h4 className="text-[10px] uppercase tracking-[0.3em] text-white/40 mb-6">Strategic Influence</h4>
+            <div className="space-y-4">
+                {items.map(item => (
+                    <div key={item.label} className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-white/60">
+                            <span>{item.label}</span>
+                            <span>{item.value}</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(item.value / max) * 100}%` }}
+                                className={`h-full ${item.color}`}
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function MatchLedger({ history }) {
+    return (
+        <div className="bg-black/40 border border-white/10 rounded-3xl p-8 backdrop-blur-xl">
+            <h3 className="text-xl font-black text-white mb-8 tracking-tighter flex items-center gap-3">
+                <span className="w-2 h-6 bg-red-600 rounded-full" />
+                COMMISSIONER'S LEDGER
+            </h3>
+            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {history?.map((match, i) => (
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        key={i}
+                        className="group flex items-center justify-between p-4 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-2xl transition-all cursor-default"
+                    >
+                        <div className="flex items-center gap-5">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black ${match.result === 'win' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                                {match.result === 'win' ? 'W' : 'L'}
+                            </div>
+                            <div>
+                                <div className="text-sm font-black text-white/90 uppercase tracking-tight">{match.game === 'uno' ? 'UNO Grand Prix' : 'Fools Fortune Duel'}</div>
+                                <div className="text-[10px] text-white/30 font-medium uppercase tracking-widest">{new Date(match.date).toLocaleDateString()} • {new Date(match.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white/60 transition-colors">Potential Analyzed</div>
+                            <div className="text-white/20 group-hover:text-amber-500/40 transition-colors">→</div>
+                        </div>
+                    </motion.div>
+                ))}
+                {(!history || history.length === 0) && (
+                    <div className="py-20 text-center">
+                        <p className="text-white/20 font-black text-xs uppercase tracking-[0.3em]">No Recorded Data Points</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ─── Main Dashboard ──────────────────────────────────────────────────────────
+
 export default function Dashboard() {
-    const { user, logout } = useAuth();
+    const { user: authUser, logout } = useAuth();
     const socket = useSocket();
+    const { myPeerId } = useVoice();
     const navigate = useNavigate();
     const [leaderboard, setLeaderboard] = useState([]);
     const [joinId, setJoinId] = useState("");
+    const [user, setUser] = useState(authUser);
+    const [activeTab, setActiveTab] = useState('rooms'); // 'rooms' or 'vault'
+
+    const fetchProfile = async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/api/user/${authUser.username}`);
+            setUser(res.data);
+            // Sync with local storage if needed
+        } catch (err) {
+            console.error("Failed to fetch profile", err);
+        }
+    };
 
     useEffect(() => {
+        fetchProfile();
         axios.get(`${API_BASE}/api/leaderboard`).then(res => setLeaderboard(res.data)).catch(() => { });
 
         if (socket) {
@@ -31,20 +157,19 @@ export default function Dashboard() {
             socket?.off('lobbyCreated');
             socket?.off('uno:lobbyCreated');
         };
-    }, [socket, navigate]);
+    }, [socket, navigate, authUser.username]);
 
     const handleCreateLobby = (mode) => {
-        socket.emit('createLobby', { username: user.username, avatar: "🎩", mode });
+        socket.emit('createLobby', { username: user.username, avatar: "🎩", mode, peerId: myPeerId });
     };
 
     const handleCreateUnoLobby = (maxPlayers) => {
-        socket.emit('uno:createLobby', { username: user.username, avatar: "🃏", maxPlayers });
+        socket.emit('uno:createLobby', { username: user.username, avatar: "🃏", maxPlayers, peerId: myPeerId });
     };
 
     const handleJoinLobby = () => {
         const id = joinId.trim();
         if (!id) return;
-        // UNO codes start with "UNO-"
         if (id.startsWith('UNO-')) {
             navigate(`/uno-lobby`, { state: { lobbyId: id, isHost: false } });
         } else {
@@ -53,227 +178,257 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-plush text-amber-50 p-6 font-serif overflow-y-auto relative">
-            {/* Decorative Background */}
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-purple-900/10 to-black/80 pointer-events-none" />
-            <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-600/20 rounded-full blur-[100px] pointer-events-none" />
-            <div className="absolute top-20 -left-20 w-72 h-72 bg-yellow-600/10 rounded-full blur-[80px] pointer-events-none" />
-            <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-900/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="min-h-screen bg-[#050505] text-amber-50 font-sans overflow-y-auto relative perspective-1000">
+            {/* Background Effects */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-900/10 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-red-900/10 rounded-full blur-[120px]" />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay" />
+            </div>
 
-            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
+            <div className="max-w-7xl mx-auto px-6 py-10 relative z-10">
 
-                {/* Left Column: Membership Card & Leaderboard */}
-                <div className="lg:col-span-4 space-y-8 lg:pt-16">
-                    {/* Membership Card */}
-                    <motion.div
-                        initial={{ x: -30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.6 }}
-                        className="bg-black/60 border-gold backdrop-blur-md rounded-xl p-6 shadow-plush relative overflow-hidden"
-                    >
-                        <div className="absolute top-0 right-0 p-4 opacity-20 text-6xl text-yellow-500 rotate-12">♛</div>
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="w-20 h-20 rounded-full border-2 border-yellow-500/50 p-1 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
-                                <div className="w-full h-full rounded-full bg-gradient-to-b from-gray-700 to-black flex items-center justify-center text-3xl">
+                {/* Header Section */}
+                <div className="flex flex-col md:flex-row justify-between items-center mb-16 gap-8">
+                    <div className="flex items-center gap-8">
+                        <div className="relative group">
+                            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-white/10 to-transparent border border-white/20 p-1 group-hover:scale-105 transition-transform">
+                                <div className="w-full h-full rounded-[20px] bg-black flex items-center justify-center text-4xl shadow-inner">
                                     {user.avatar || "🎩"}
                                 </div>
                             </div>
-                            <div>
-                                <h2 className="text-2xl font-bold text-gold tracking-wide">{user.username}</h2>
-                                <p className="text-yellow-500/60 text-xs uppercase tracking-[0.2em] font-sans mt-1">Diamond Member</p>
-                            </div>
+                            <div className="absolute -bottom-2 -right-2 bg-amber-500 text-black text-[9px] font-black px-2 py-1 rounded-lg shadow-xl uppercase tracking-tighter">Diamond</div>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
-                                <span className="block text-2xl font-bold text-white">{user.stats.wins}</span>
-                                <span className="text-[10px] uppercase text-gray-400 tracking-widest font-sans">Victories</span>
-                            </div>
-                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
-                                <span className="block text-2xl font-bold text-red-300">{user.stats.losses}</span>
-                                <span className="text-[10px] uppercase text-gray-400 tracking-widest font-sans">Defeats</span>
-                            </div>
-                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
-                                <span className="block text-xl font-bold text-purple-300">{user.stats.timesQueenHeld || 0}</span>
-                                <span className="text-[10px] uppercase text-gray-400 tracking-widest font-sans">Queens Held</span>
-                            </div>
-                            <div className="bg-white/5 p-3 rounded-lg border border-white/5">
-                                <span className="block text-sm font-bold text-yellow-500 truncate">
-                                    {Object.entries(user.stats.rivals || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || "—"}
-                                </span>
-                                <span className="text-[10px] uppercase text-gray-400 tracking-widest font-sans">Nemesis</span>
-                            </div>
-                        </div>
-
-                        <button onClick={logout} className="w-full mt-6 py-2 text-xs text-red-400/60 hover:text-red-400 font-sans uppercase tracking-widest hover:bg-red-500/10 rounded transition-colors">
-                            Revoke Membership
-                        </button>
-                    </motion.div>
-
-                    {/* Elite Circle (Leaderboard) */}
-                    <div className="bg-black/40 border-gold rounded-xl p-6 backdrop-blur-sm">
-                        <h3 className="text-lg font-bold text-gold mb-6 border-b border-yellow-500/20 pb-2">The Inner Circle</h3>
-                        <div className="space-y-4">
-                            {leaderboard.map((u, i) => (
-                                <div key={i} className="flex justify-between items-center text-sm group cursor-default">
-                                    <div className="flex items-center gap-3">
-                                        <span className={`font-mono text-xs w-6 h-6 flex items-center justify-center rounded-full ${i === 0 ? 'bg-yellow-500 text-black font-bold' : 'text-gray-500 bg-white/5'}`}>
-                                            {i + 1}
-                                        </span>
-                                        <span className="text-gray-300 group-hover:text-yellow-200 transition-colors font-medium">{u.username}</span>
-                                    </div>
-                                    <span className="font-mono text-yellow-500/80">{u.wins} W</span>
-                                </div>
-                            ))}
-                            {leaderboard.length === 0 && <p className="text-gray-500 text-sm italic">No elite members yet.</p>}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right Column: Game Rooms */}
-                <div className="lg:col-span-8 space-y-10">
-                    <motion.div
-                        initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, duration: 0.6 }}
-                        className="text-center py-6"
-                    >
-                        <h1 className="text-5xl md:text-6xl font-bold text-gold mb-2 tracking-tighter drop-shadow-2xl">THE GAME ROOM</h1>
-                        <p className="text-lg text-yellow-100/50 font-light tracking-widest font-sans uppercase">Choose Your Table</p>
-                    </motion.div>
-
-                    {/* ── FOOL'S FORTUNE (Old Maid) ── */}
-                    <div>
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="h-px flex-1 bg-yellow-500/10" />
-                            <span className="text-xs font-sans uppercase tracking-[0.3em] text-yellow-500/50 flex items-center gap-2">
-                                <span>♠</span> Fool's Fortune <span>♠</span>
-                            </span>
-                            <div className="h-px flex-1 bg-yellow-500/10" />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <motion.button
-                                whileHover={{ scale: 1.02, translateY: -5 }} whileTap={{ scale: 0.98 }}
-                                onClick={() => handleCreateLobby(2)}
-                                className="relative h-56 bg-gradient-to-br from-gray-900 to-black border-gold rounded-2xl p-8 text-left group overflow-hidden shadow-plush"
-                            >
-                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
-                                <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:opacity-100 group-hover:text-gold transition-all duration-500">⚔️</div>
-                                <div className="relative z-10 flex flex-col h-full justify-between">
-                                    <div>
-                                        <h3 className="text-2xl font-bold text-white group-hover:text-gold transition-colors mb-2">The Duel</h3>
-                                        <div className="h-0.5 w-12 bg-yellow-600/50 group-hover:w-24 transition-all duration-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-400 text-sm font-sans mb-1">1 vs 1 • Old Maid Rules</p>
-                                        <p className="text-yellow-500/60 text-xs uppercase tracking-widest font-sans">Open Private Suite</p>
-                                    </div>
-                                </div>
-                            </motion.button>
-
-                            <motion.button
-                                whileHover={{ scale: 1.02, translateY: -5 }} whileTap={{ scale: 0.98 }}
-                                onClick={() => handleCreateLobby(4)}
-                                className="relative h-56 bg-gradient-to-br from-purple-900/20 to-black border-gold rounded-2xl p-8 text-left group overflow-hidden shadow-plush"
-                            >
-                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
-                                <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:opacity-100 group-hover:text-purple-400 transition-all duration-500">🎲</div>
-                                <div className="relative z-10 flex flex-col h-full justify-between">
-                                    <div>
-                                        <h3 className="text-2xl font-bold text-white group-hover:text-purple-300 transition-colors mb-2">Fortune's Chaos</h3>
-                                        <div className="h-0.5 w-12 bg-purple-600/50 group-hover:w-24 transition-all duration-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-400 text-sm font-sans mb-1">4 Players • Total Mayhem</p>
-                                        <p className="text-purple-500/60 text-xs uppercase tracking-widest font-sans">Host Chaos Table</p>
-                                    </div>
-                                </div>
-                            </motion.button>
-                        </div>
-                    </div>
-
-                    {/* ── UNO ── */}
-                    <div>
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="h-px flex-1 bg-red-500/10" />
-                            <span className="text-xs font-sans uppercase tracking-[0.3em] text-red-500/60 flex items-center gap-2">
-                                <span className="text-red-500">U</span><span className="text-blue-500">N</span><span className="text-green-500">O</span>
-                                <span className="text-gray-500">— Card Game</span>
-                            </span>
-                            <div className="h-px flex-1 bg-red-500/10" />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <motion.button
-                                whileHover={{ scale: 1.02, translateY: -5 }} whileTap={{ scale: 0.98 }}
-                                onClick={() => handleCreateUnoLobby(2)}
-                                className="relative h-56 bg-gradient-to-br from-red-950/60 to-black border border-red-700/30 hover:border-red-500/60 rounded-2xl p-8 text-left group overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
-                            >
-                                <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:opacity-100 transition-all duration-500">🃏</div>
-                                <div className="absolute inset-0 bg-gradient-to-br from-red-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                <div className="relative z-10 flex flex-col h-full justify-between">
-                                    <div>
-                                        <div className="flex gap-1 mb-3">
-                                            {['red', 'blue', 'green', 'yellow'].map(c => (
-                                                <div key={c} className={`w-2 h-6 rounded-sm ${c === 'red' ? 'bg-red-500' : c === 'blue' ? 'bg-blue-500' : c === 'green' ? 'bg-green-500' : 'bg-yellow-400'}`} />
-                                            ))}
-                                        </div>
-                                        <h3 className="text-2xl font-bold text-white group-hover:text-red-400 transition-colors mb-2">UNO: Duel</h3>
-                                        <div className="h-0.5 w-12 bg-red-600/50 group-hover:w-24 transition-all duration-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-400 text-sm font-sans mb-1">2 Players • Standard Rules</p>
-                                        <p className="text-red-500/60 text-xs uppercase tracking-widest font-sans">Create UNO Table</p>
-                                    </div>
-                                </div>
-                            </motion.button>
-
-                            <motion.button
-                                whileHover={{ scale: 1.02, translateY: -5 }} whileTap={{ scale: 0.98 }}
-                                onClick={() => handleCreateUnoLobby(4)}
-                                className="relative h-56 bg-gradient-to-br from-blue-950/40 via-green-950/20 to-black border border-blue-700/20 hover:border-blue-500/60 rounded-2xl p-8 text-left group overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.4)]"
-                            >
-                                <div className="absolute top-4 right-4 text-4xl opacity-20 group-hover:opacity-100 transition-all duration-500">🌈</div>
-                                <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-green-900/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                <div className="relative z-10 flex flex-col h-full justify-between">
-                                    <div>
-                                        <div className="flex gap-1 mb-3">
-                                            {['red', 'blue', 'green', 'yellow'].map(c => (
-                                                <div key={c} className={`w-2 h-6 rounded-sm ${c === 'red' ? 'bg-red-500' : c === 'blue' ? 'bg-blue-500' : c === 'green' ? 'bg-green-500' : 'bg-yellow-400'}`} />
-                                            ))}
-                                        </div>
-                                        <h3 className="text-2xl font-bold text-white group-hover:text-blue-300 transition-colors mb-2">UNO: Mayhem</h3>
-                                        <div className="h-0.5 w-12 bg-blue-600/50 group-hover:w-24 transition-all duration-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-400 text-sm font-sans mb-1">4 Players • All Rules Active</p>
-                                        <p className="text-blue-500/60 text-xs uppercase tracking-widest font-sans">Host Chaos Table</p>
-                                    </div>
-                                </div>
-                            </motion.button>
-                        </div>
-                    </div>
-
-                    {/* Join Section */}
-                    <div className="bg-black/40 border-gold rounded-xl p-8 flex flex-col md:flex-row gap-8 items-center justify-between backdrop-blur-md">
                         <div>
-                            <h3 className="text-2xl font-bold text-white mb-1">Have an Invitation?</h3>
-                            <p className="text-gray-400 text-sm font-sans">Enter a VIP code for Fool's Fortune, or a UNO-XXXXX code for UNO.</p>
-                        </div>
-                        <div className="flex w-full md:w-auto gap-0 shadow-lg">
-                            <input
-                                type="text"
-                                value={joinId}
-                                onChange={(e) => setJoinId(e.target.value.toUpperCase())}
-                                placeholder="VIP-CODE or UNO-XXXXX"
-                                className="bg-white/5 border border-white/10 rounded-l-lg px-5 py-4 focus:outline-none focus:bg-white/10 w-full md:w-56 font-mono tracking-widest text-center uppercase placeholder-gray-600 text-sm"
-                            />
-                            <button
-                                onClick={handleJoinLobby}
-                                className="bg-gradient-to-b from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-black px-8 py-4 rounded-r-lg font-bold uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(234,179,8,0.4)]"
-                            >
-                                Enter
-                            </button>
+                            <h2 className="text-4xl font-black text-white tracking-tighter uppercase leading-none">{user.username}</h2>
+                            <div className="flex items-center gap-4 mt-3">
+                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Member Since 2024</span>
+                                <div className="h-1 w-1 bg-white/20 rounded-full" />
+                                <button onClick={logout} className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500/60 hover:text-red-500 transition-colors">Terminate Access</button>
+                            </div>
                         </div>
                     </div>
+
+                    <div className="flex bg-white/[0.03] border border-white/10 rounded-2xl p-1.5 backdrop-blur-xl">
+                        <button
+                            onClick={() => setActiveTab('rooms')}
+                            className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'rooms' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white/60'}`}
+                        >
+                            Game Rooms
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('vault')}
+                            className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'vault' ? 'bg-white text-black shadow-xl' : 'text-white/40 hover:text-white/60'}`}
+                        >
+                            Performance Vault
+                        </button>
+                    </div>
                 </div>
+
+                <AnimatePresence mode="wait">
+                    {activeTab === 'rooms' ? (
+                        <motion.div
+                            key="rooms"
+                            initial={{ opacity: 0, scale: 0.98 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 1.02 }}
+                            className="grid grid-cols-1 lg:grid-cols-12 gap-10"
+                        >
+                            {/* Left: General Stats & Leaderboard */}
+                            <div className="lg:col-span-4 space-y-8">
+                                <div className="bg-black/40 border border-white/10 rounded-3xl p-8 backdrop-blur-xl">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-white/5 p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
+                                            <span className="block text-3xl font-black text-white">{user.stats.wins}</span>
+                                            <span className="text-[9px] uppercase text-white/20 tracking-[0.2em] font-black">Victories</span>
+                                        </div>
+                                        <div className="bg-white/5 p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
+                                            <span className="block text-3xl font-black text-red-500/80">{user.stats.losses}</span>
+                                            <span className="text-[9px] uppercase text-white/20 tracking-[0.2em] font-black">Defeats</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-8 space-y-4">
+                                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/40">
+                                            <span>Win Consistency</span>
+                                            <span className="text-white/70">{Math.round((user.stats.wins / (user.stats.matches || 1)) * 100)}%</span>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                            <div className="h-full bg-amber-500 shadow-[0_0_10px_#f59e0b66]" style={{ width: `${(user.stats.wins / (user.stats.matches || 1)) * 100}%` }} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-black/40 border border-white/10 rounded-3xl p-8 backdrop-blur-xl">
+                                    <h3 className="text-sm font-black text-white mb-6 uppercase tracking-[0.4em]">The Inner Circle</h3>
+                                    <div className="space-y-4">
+                                        {leaderboard.map((u, i) => (
+                                            <div key={i} className="flex justify-between items-center group">
+                                                <div className="flex items-center gap-4">
+                                                    <span className={`w-6 h-6 flex items-center justify-center rounded-lg text-[10px] font-black ${i === 0 ? 'bg-amber-500 text-black' : 'bg-white/5 text-white/40'}`}>
+                                                        {i + 1}
+                                                    </span>
+                                                    <span className="text-sm font-bold text-white/80 group-hover:text-white transition-colors">{u.username}</span>
+                                                </div>
+                                                <span className="text-[10px] font-black text-amber-500/40 uppercase tabular-nums">{u.wins} Wins</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right: Game selection */}
+                            <div className="lg:col-span-8 space-y-12">
+                                {/* Fool's Fortune Section */}
+                                <section>
+                                    <div className="flex items-center gap-4 mb-6">
+                                        <h3 className="text-xl font-black text-white tracking-tighter uppercase">Fool's Fortune</h3>
+                                        <div className="h-px flex-1 bg-white/10" />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <motion.button
+                                            whileHover={{ y: -8, scale: 1.02 }}
+                                            onClick={() => handleCreateLobby(2)}
+                                            className="relative h-64 bg-gradient-to-br from-[#1a1a0d] to-black border border-yellow-900/40 rounded-[32px] p-8 text-left group overflow-hidden shadow-2xl transition-all hover:border-yellow-500/60"
+                                        >
+                                            <div className="absolute top-6 right-6 text-5xl opacity-10 group-hover:opacity-100 group-hover:rotate-12 transition-all duration-500">♠️</div>
+                                            <div className="relative z-10 flex flex-col h-full justify-between">
+                                                <div className="space-y-4">
+                                                    <div className="flex gap-1">
+                                                        <div className="w-1.5 h-6 rounded-full bg-yellow-600 opacity-40" />
+                                                        <div className="w-1.5 h-6 rounded-full bg-purple-600 opacity-40" />
+                                                    </div>
+                                                    <h4 className="text-3xl font-black text-white tracking-tighter uppercase leading-none">The Duel<br /><span className="text-sm font-medium text-white/20 tracking-normal">Private Lounge • 2P</span></h4>
+                                                </div>
+                                                <span className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.3em] group-hover:translate-x-2 transition-transform">Create Lobby →</span>
+                                            </div>
+                                        </motion.button>
+                                        <motion.button
+                                            whileHover={{ y: -8, scale: 1.02 }}
+                                            onClick={() => handleCreateLobby(4)}
+                                            className="relative h-64 bg-gradient-to-br from-[#120512] to-black border border-purple-900/40 rounded-[32px] p-8 text-left group overflow-hidden shadow-2xl transition-all hover:border-purple-500/60"
+                                        >
+                                            <div className="absolute top-6 right-6 text-5xl opacity-10 group-hover:opacity-100 group-hover:-rotate-12 transition-all duration-500">👑</div>
+                                            <div className="relative z-10 flex flex-col h-full justify-between">
+                                                <div className="space-y-4">
+                                                    <div className="flex gap-1">
+                                                        <div className="w-1.5 h-6 rounded-full bg-yellow-600 opacity-40" />
+                                                        <div className="w-1.5 h-6 rounded-full bg-purple-600 opacity-40" />
+                                                    </div>
+                                                    <h4 className="text-3xl font-black text-white tracking-tighter uppercase leading-none">Grand Table<br /><span className="text-sm font-medium text-white/20 tracking-normal">Royal Court • 4P</span></h4>
+                                                </div>
+                                                <span className="text-[10px] font-black text-purple-500 uppercase tracking-[0.3em] group-hover:translate-x-2 transition-transform">Host Table →</span>
+                                            </div>
+                                        </motion.button>
+                                    </div>
+                                </section>
+
+                                {/* UNO Section */}
+                                <section>
+                                    <div className="flex items-center gap-4 mb-6">
+                                        <h3 className="text-xl font-black text-white tracking-tighter">UNO PROMENADE</h3>
+                                        <div className="h-px flex-1 bg-white/10" />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <motion.button
+                                            whileHover={{ y: -8, scale: 1.02 }}
+                                            onClick={() => handleCreateUnoLobby(2)}
+                                            className="relative h-64 bg-gradient-to-br from-[#120505] to-black border border-red-900/40 rounded-[32px] p-8 text-left group overflow-hidden shadow-2xl transition-all hover:border-red-500/60"
+                                        >
+                                            <div className="absolute top-6 right-6 text-5xl opacity-10 group-hover:opacity-100 group-hover:rotate-12 transition-all duration-500">🃏</div>
+                                            <div className="relative z-10 flex flex-col h-full justify-between">
+                                                <div className="space-y-4">
+                                                    <div className="flex gap-1">
+                                                        {['red', 'blue', 'green', 'yellow'].map(c => <div key={c} className="w-1.5 h-6 rounded-full opacity-40" style={{ backgroundColor: c }} />)}
+                                                    </div>
+                                                    <h4 className="text-3xl font-black text-white tracking-tighter uppercase leading-none">UNO Duel<br /><span className="text-sm font-medium text-white/20 tracking-normal">Imperial Suite • 2P</span></h4>
+                                                </div>
+                                                <span className="text-[10px] font-black text-red-500 uppercase tracking-[0.3em] group-hover:translate-x-2 transition-transform">Create Lobby →</span>
+                                            </div>
+                                        </motion.button>
+                                        <motion.button
+                                            whileHover={{ y: -8, scale: 1.02 }}
+                                            onClick={() => handleCreateUnoLobby(4)}
+                                            className="relative h-64 bg-gradient-to-br from-[#050512] to-black border border-blue-900/40 rounded-[32px] p-8 text-left group overflow-hidden shadow-2xl transition-all hover:border-blue-500/60"
+                                        >
+                                            <div className="absolute top-6 right-6 text-5xl opacity-10 group-hover:opacity-100 group-hover:-rotate-12 transition-all duration-500">🌈</div>
+                                            <div className="relative z-10 flex flex-col h-full justify-between">
+                                                <div className="space-y-4">
+                                                    <div className="flex gap-1">
+                                                        {['red', 'blue', 'green', 'yellow'].map(c => <div key={c} className="w-1.5 h-6 rounded-full opacity-40" style={{ backgroundColor: c }} />)}
+                                                    </div>
+                                                    <h4 className="text-3xl font-black text-white tracking-tighter uppercase leading-none">UNO Mayhem<br /><span className="text-sm font-medium text-white/20 tracking-normal">Grand Coliseum • 4P</span></h4>
+                                                </div>
+                                                <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] group-hover:translate-x-2 transition-transform">Host Table →</span>
+                                            </div>
+                                        </motion.button>
+                                    </div>
+                                </section>
+
+                                {/* Invitation Section */}
+                                <div className="bg-white/[0.03] border border-white/10 rounded-[32px] p-10 flex flex-col md:flex-row gap-8 items-center justify-between backdrop-blur-xl group">
+                                    <div>
+                                        <h3 className="text-2xl font-black text-white mb-1 tracking-tighter">VIP INVITATION?</h3>
+                                        <p className="text-white/30 text-[10px] font-black uppercase tracking-widest">Enter the exclusive access code below</p>
+                                    </div>
+                                    <div className="flex w-full md:w-auto shadow-2xl">
+                                        <input
+                                            type="text"
+                                            value={joinId}
+                                            onChange={(e) => setJoinId(e.target.value.toUpperCase())}
+                                            placeholder="UNO-XXXXX"
+                                            className="bg-black/60 border border-white/10 rounded-l-2xl px-6 py-4 focus:outline-none focus:border-white/30 w-full md:w-56 font-black tracking-[0.2em] text-center uppercase placeholder-white/10 text-xs"
+                                        />
+                                        <button
+                                            onClick={handleJoinLobby}
+                                            className="bg-white text-black px-8 py-4 rounded-r-2xl font-black uppercase tracking-widest text-xs transition-all hover:bg-amber-500 shadow-xl"
+                                        >
+                                            Enter
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="vault"
+                            initial={{ opacity: 0, scale: 1.02 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.98 }}
+                            className="grid grid-cols-1 lg:grid-cols-12 gap-10"
+                        >
+                            {/* Performance Metrics Column */}
+                            <div className="lg:col-span-5 space-y-8">
+                                <SkillMeter rating={user.stats.skillRating || 1000} />
+                                <StrategyHeatmap unoStats={user.stats.uno} />
+
+                                <div className="bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20 rounded-3xl p-8 backdrop-blur-xl">
+                                    <h4 className="text-[10px] uppercase tracking-[0.4em] text-amber-500 mb-6 font-black">Growth Milestones</h4>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        {[
+                                            { label: "Matches", val: user.stats.matches, target: 50 },
+                                            { label: "UNO calls", val: user.stats.uno?.successfulUnos || 0, target: 20 },
+                                            { label: "Victories", val: user.stats.wins, target: 10 },
+                                        ].map(m => (
+                                            <div key={m.label} className="text-center">
+                                                <div className="w-12 h-12 mx-auto rounded-full border border-white/10 flex items-center justify-center text-sm font-black text-white/40 mb-2">
+                                                    {Math.min(Math.round((m.val / m.target) * 100), 100)}%
+                                                </div>
+                                                <span className="block text-[8px] font-black uppercase tracking-widest text-white/20">{m.label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Match History Ledger */}
+                            <div className="lg:col-span-7">
+                                <MatchLedger history={user.matchHistory} />
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
             </div>
         </div>
     );

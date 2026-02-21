@@ -5,72 +5,113 @@ export default function UnoWinnerModal({ winner, onClose }) {
     return (
         <AnimatePresence>
             <motion.div
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-2xl"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
             >
-                {/* Confetti particles */}
+                {/* Advanced Confetti */}
                 <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                    {Array.from({ length: 40 }).map((_, i) => (
+                    {Array.from({ length: 60 }).map((_, i) => (
                         <motion.div
                             key={i}
-                            className="absolute w-3 h-3 rounded-sm"
+                            className="absolute w-2 h-2 rounded-full"
                             style={{
                                 left: `${Math.random() * 100}%`,
                                 top: `-20px`,
-                                backgroundColor: ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7'][i % 5],
+                                backgroundColor: ['#ef4444', '#3b82f6', '#16a34a', '#facc15', '#ffffff'][i % 5],
+                                filter: 'blur(1px)'
                             }}
                             animate={{
                                 top: `110%`,
-                                rotate: Math.random() * 720 - 360,
-                                x: (Math.random() - 0.5) * 200,
-                                opacity: [1, 1, 0],
+                                rotate: Math.random() * 720,
+                                x: (Math.random() - 0.5) * 300,
                             }}
-                            transition={{ duration: 2 + Math.random() * 2, delay: Math.random() * 1.5, ease: "easeIn" }}
+                            transition={{
+                                duration: 3 + Math.random() * 3,
+                                delay: Math.random() * 2,
+                                ease: "linear",
+                                repeat: Infinity
+                            }}
                         />
                     ))}
                 </div>
 
                 <motion.div
-                    initial={{ scale: 0.5, rotate: -10, opacity: 0 }}
-                    animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                    className="relative mx-4 max-w-md w-full text-center"
+                    initial={{ scale: 0.8, y: 100, opacity: 0 }}
+                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 150, damping: 20 }}
+                    className="relative mx-4 max-w-lg w-full text-center"
                 >
-                    <div className="bg-black/90 border border-yellow-500/40 rounded-3xl p-12 shadow-[0_0_80px_rgba(202,138,4,0.2)] backdrop-blur-xl">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-500/60 to-transparent rounded-t-3xl" />
+                    {/* Background Glow */}
+                    <div className="absolute inset-[-100px] bg-amber-500/20 rounded-full blur-[100px] pointer-events-none" />
 
+                    <div className="relative bg-[#0f0f0f] border border-white/10 rounded-[48px] p-16 shadow-[0_40px_100px_rgba(0,0,0,0.9)] overflow-hidden">
+                        {/* Luxury Accents */}
+                        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+                        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+
+                        {/* Animated Trophy */}
                         <motion.div
-                            animate={{ rotate: [0, -10, 10, -5, 5, 0], scale: [1, 1.2, 1.2, 1] }}
-                            transition={{ duration: 1, delay: 0.3 }}
-                            className="text-7xl mb-6"
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.3, duration: 0.8 }}
+                            className="relative mb-10 flex justify-center"
                         >
-                            🏆
+                            <div className="text-8xl drop-shadow-[0_0_30px_rgba(245,158,11,0.5)]">🏆</div>
+                            <motion.div
+                                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }}
+                                transition={{ repeat: Infinity, duration: 3 }}
+                                className="absolute inset-0 bg-amber-500 rounded-full blur-[40px] -z-1"
+                            />
                         </motion.div>
 
+                        <div className="space-y-4">
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.6 }}
+                                className="text-[10px] font-black uppercase tracking-[0.5em] text-amber-500/60"
+                            >
+                                Grand Tournament Victory
+                            </motion.div>
+
+                            <motion.h2
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.7 }}
+                                className="text-6xl md:text-7xl font-black text-white tracking-tighter leading-tight"
+                            >
+                                {winner?.username}
+                            </motion.h2>
+
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.9 }}
+                                className="text-white/40 font-medium italic text-lg"
+                            >
+                                The cards played in your favor.
+                            </motion.div>
+                        </div>
+
+                        {/* Controls */}
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.5 }}
+                            transition={{ delay: 1.2 }}
+                            className="mt-16"
                         >
-                            <p className="text-yellow-500/60 text-xs font-sans uppercase tracking-[0.4em] mb-2">UNO! Winner</p>
-                            <h2 className="text-5xl font-black text-white tracking-tight mb-2">
-                                {winner?.username}
-                            </h2>
-                            <p className="text-amber-100/50 italic font-serif text-lg mb-10">
-                                Played their last card. The table falls silent.
-                            </p>
+                            <motion.button
+                                onClick={onClose}
+                                whileHover={{ scale: 1.05, y: -2 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="w-full py-6 bg-gradient-to-r from-amber-600 to-amber-700 rounded-[24px] text-black font-black uppercase tracking-[0.4em] text-xs shadow-[0_20px_40px_rgba(217,119,6,0.2)] hover:shadow-[0_25px_50px_rgba(217,119,6,0.4)] border-t border-white/20 transition-all"
+                            >
+                                Return to Dashboard
+                            </motion.button>
+                            <p className="mt-6 text-[8px] font-black uppercase tracking-[0.3em] text-white/10">Tournament record has been updated</p>
                         </motion.div>
-
-                        <motion.button
-                            onClick={onClose}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.97 }}
-                            className="px-12 py-4 bg-gradient-to-r from-yellow-700 to-yellow-600 rounded-xl text-black font-bold uppercase tracking-[0.2em] text-sm shadow-lg hover:shadow-[0_0_30px_rgba(202,138,4,0.4)] transition-shadow"
-                        >
-                            Back to Dashboard
-                        </motion.button>
                     </div>
                 </motion.div>
             </motion.div>

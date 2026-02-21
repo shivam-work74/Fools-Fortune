@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSocket } from "../context/SocketContext";
 import { useAuth } from "../context/AuthContext";
+import { useVoice } from "../context/VoiceContext";
 import { motion } from "framer-motion";
 
 const AVATARS = ["😎", "🤖", "🦊", "👽", "🤠", "👻", "🦄", "🐱"];
@@ -10,6 +11,7 @@ const AVATARS = ["😎", "🤖", "🦊", "👽", "🤠", "👻", "🦄", "🐱"]
 export default function Lobby() {
     const { state } = useLocation(); // { lobbyId, isHost }
     const { user } = useAuth();
+    const { myPeerId, callUser, isMuted, toggleMute, isSpeakerEnabled, toggleSpeaker, repairAudio, testMic } = useVoice();
     const socket = useSocket();
     const navigate = useNavigate();
 
@@ -24,15 +26,30 @@ export default function Lobby() {
     });
 
     useEffect(() => {
-        if (!socket || !lobbyId) return;
+        if (!socket || !lobbyId || !myPeerId) return;
 
         // If joiner, emit join
         if (!state?.isHost) {
-            socket.emit('joinLobby', { lobbyId, username: user.username, avatar: selectedAvatar });
+            socket.emit('joinLobby', { lobbyId, username: user.username, avatar: selectedAvatar, peerId: myPeerId });
+        } else {
+            // If host, we already created lobby but might need to broadcast peerId if we just got it
+            if (myPeerId) {
+                socket.emit('joinLobby', { lobbyId, username: user.username, avatar: "🎩", peerId: myPeerId });
+            }
         }
 
         socket.on('playerJoined', ({ players }) => {
             setPlayers(players);
+            // Auto-call new players who have a peerId
+            players.forEach(p => {
+                if (p.username !== user.username && p.peerId) {
+                    // Only call if my username is less than theirs (lexicographical)
+                    // This ensures only one person starts the call between any pair
+                    if (user.username < p.username) {
+                        callUser(p.username, p.peerId);
+                    }
+                }
+            });
         });
 
         socket.on('lobbyCreated', ({ players }) => {
@@ -102,6 +119,23 @@ export default function Lobby() {
                             <span className="text-xs uppercase tracking-[0.3em] text-yellow-500/60 font-sans">Secure Channel</span>
                         </div>
                         <h2 className="text-4xl md:text-5xl font-bold text-gold tracking-tight">PRIVATE SUITE</h2>
+                    </div>
+
+                    <div className="flex gap-4 bg-white/5 p-2 rounded-2xl border border-white/10">
+                        <button
+                            onClick={toggleMute}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center text-sm transition-all shadow-lg hover:scale-110 active:scale-95 border ${isMuted ? 'bg-red-600/40 border-red-500/50 text-white' : 'bg-green-600/40 border-green-500/50 text-white'}`}
+                            title={isMuted ? "Unmute Mic" : "Mute Mic"}
+                        >
+                            {isMuted ? '🔇' : '🎙️'}
+                        </button>
+                        <button
+                            onClick={toggleSpeaker}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center text-sm transition-all shadow-lg hover:scale-110 active:scale-95 border ${!isSpeakerEnabled ? 'bg-red-600/40 border-red-500/50 text-white' : 'bg-blue-600/40 border-blue-500/50 text-white'}`}
+                            title={isSpeakerEnabled ? "Disable Speaker" : "Enable Speaker"}
+                        >
+                            {isSpeakerEnabled ? '🔊' : '🔇'}
+                        </button>
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
@@ -177,7 +211,23 @@ export default function Lobby() {
 
                         {/* House Rules */}
                         <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
-                            <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-gold mb-4 font-sans">House Rules</h3>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-gold font-sans">House Rules</h3>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={testMic}
+                                        className="bg-blue-600/20 hover:bg-blue-600/40 text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded border border-blue-500/20 transition-all shadow-sm"
+                                    >
+                                        Mic Test
+                                    </button>
+                                    <button
+                                        onClick={repairAudio}
+                                        className="bg-white/5 hover:bg-white/10 text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded border border-white/10 transition-all opacity-40 hover:opacity-100 shadow-sm"
+                                    >
+                                        Repair Audio
+                                    </button>
+                                </div>
+                            </div>
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between p-3 bg-black/40 rounded-lg border border-white/5">
                                     <div>

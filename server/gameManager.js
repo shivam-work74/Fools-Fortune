@@ -54,9 +54,9 @@ export function handleGameEvents(io, socket) {
 
     // --- LOBBY MANAGEMENT ---
 
-    socket.on('createLobby', ({ username, avatar, mode }) => {
+    socket.on('createLobby', ({ username, avatar, mode, peerId }) => {
         const lobbyId = nanoid(5);
-        const player = { id: socket.id, username, avatar, isHost: true };
+        const player = { id: socket.id, username, avatar, isHost: true, peerId };
 
         lobbies.set(lobbyId, {
             id: lobbyId,
@@ -77,16 +77,21 @@ export function handleGameEvents(io, socket) {
         console.log(`Lobby ${lobbyId} created by ${username}`);
     });
 
-    socket.on('joinLobby', ({ lobbyId, username, avatar }) => {
+    socket.on('joinLobby', ({ lobbyId, username, avatar, peerId }) => {
         const lobby = lobbies.get(lobbyId);
         if (!lobby) return socket.emit('error', 'Lobby not found');
         if (lobby.status !== 'waiting') return socket.emit('error', 'Game already started');
         if (lobby.players.length >= lobby.mode) return socket.emit('error', 'Lobby full');
 
         // Prevent duplicate join
-        if (lobby.players.find(p => p.id === socket.id)) return;
+        const existingPlayer = lobby.players.find(p => p.id === socket.id);
+        if (existingPlayer) {
+            existingPlayer.peerId = peerId;
+            io.to(lobbyId).emit('playerJoined', { players: lobby.players });
+            return;
+        }
 
-        const player = { id: socket.id, username, avatar, isHost: false };
+        const player = { id: socket.id, username, avatar, isHost: false, peerId };
         lobby.players.push(player);
         socket.join(lobbyId);
 

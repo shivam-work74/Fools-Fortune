@@ -1,7 +1,17 @@
-import React from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useVoice } from "../context/VoiceContext";
+import { useAuth } from "../context/AuthContext";
 
-export default function PlayerAvatar({ name, isBot, cardCount, isActive, isTarget, finished, discards, avatar }) {
+export default function PlayerAvatar({ name, isBot, cardCount, isActive, isTarget, finished, discards, avatar, peerId }) {
+    const { streams, isMuted, isSpeaking } = useVoice();
+    const { user } = useAuth();
+
+    const isMe = user?.username === name;
+    const voiceKey = isMe ? 'local' : peerId;
+    const hasVoice = streams[voiceKey] || isMe;
+    const speaking = isSpeaking[voiceKey];
+    const muted = isMe && isMuted;
+
     return (
         <div className={`flex flex-col items-center gap-3 transition-all duration-500 ease-out ${isActive ? "scale-110 z-20" : "scale-100 z-10"} ${finished ? "opacity-60 grayscale" : ""}`}>
 
@@ -32,6 +42,22 @@ export default function PlayerAvatar({ name, isBot, cardCount, isActive, isTarge
                         animate={{ rotate: 360 }}
                         transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
                     />
+                )}
+
+                {/* Voice Indicator Ring */}
+                {speaking && (
+                    <motion.div
+                        className="absolute -inset-2 rounded-full border-4 border-green-500/40 pointer-events-none"
+                        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
+                        transition={{ repeat: Infinity, duration: 1 }}
+                    />
+                )}
+
+                {/* Mic Status Icon */}
+                {hasVoice && (
+                    <div className={`absolute -bottom-1 -left-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] shadow-lg border ${muted ? 'bg-red-500 border-red-400 text-white' : 'bg-green-500 border-green-400 text-white'}`}>
+                        {muted ? '❌' : '🎙️'}
+                    </div>
                 )}
             </div>
 
