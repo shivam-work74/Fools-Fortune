@@ -54,6 +54,6 @@ export default function App() {
 function LandingPageWrapper() {
   const { user } = useAuth();
   if (user) return <Navigate to="/dashboard" />;
-  return <LandingPage onPlay={() => window.location.href = '/login'} onHowTo={() => { }} />; // Simplified for now
+  return <LandingPage />;
 }
 
